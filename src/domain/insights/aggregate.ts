@@ -189,3 +189,30 @@ export function studentDetail(dataset: Dataset, studentId: string): StudentDetai
     strugglingConceptNames: perConcept.filter((p) => p.struggling).map((p) => p.name),
   };
 }
+
+export interface StudentNeed {
+  student: Student;
+  struggleCount: number;
+  overallMasteryPct: number | null;
+  strugglingConceptNames: string[];
+}
+
+// Students ranked by how much they need attention: most struggling concepts
+// first, then lowest overall mastery. Drives the dashboard's follow-up list.
+export function studentsByNeed(dataset: Dataset): StudentNeed[] {
+  return dataset.students
+    .map((s) => {
+      const d = studentDetail(dataset, s.id)!;
+      return {
+        student: s,
+        struggleCount: d.strugglingConceptNames.length,
+        overallMasteryPct: d.overallMasteryPct,
+        strugglingConceptNames: d.strugglingConceptNames,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.struggleCount - a.struggleCount ||
+        (a.overallMasteryPct ?? 100) - (b.overallMasteryPct ?? 100),
+    );
+}

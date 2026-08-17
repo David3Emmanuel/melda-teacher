@@ -12,6 +12,7 @@ import {
   masteryFor,
   signalCounts,
   studentDetail,
+  studentsByNeed,
 } from './aggregate';
 
 // `asserts value` lets `ok(d)` narrow a nullable to non-null for the checks below.
@@ -124,6 +125,17 @@ check('s1 struggles with exactly Atomic Structure, Chemical Reactions, States of
   ]);
   eq(d.perConcept.length, 6);
   ok(d.overallMasteryPct !== null && d.overallMasteryPct > 0);
+});
+
+// --- students ranked by need -------------------------------------------------
+check('studentsByNeed ranks the most-struggling student first, all 25 present', () => {
+  const ranked = studentsByNeed(dataset);
+  eq(ranked.length, 25);
+  for (let i = 1; i < ranked.length; i++) {
+    ok(ranked[i - 1].struggleCount >= ranked[i].struggleCount, 'sorted by struggle count');
+  }
+  ok(ranked[0].struggleCount >= 1, 'someone is struggling');
+  ok(ranked[0].strugglingConceptNames.length === ranked[0].struggleCount);
 });
 
 console.log(`\n${checks} insight checks passed.`);
