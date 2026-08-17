@@ -20,7 +20,7 @@ The differentiator isn't any single feature — those exist already. It's the **
 
 ## Stack
 
-**Expo (SDK 57) + React Native + TypeScript.** Cross-platform (iOS / Android / web) from one codebase; Android is the target device. In-memory seeded data + pure insight functions (no database yet — see the upgrade path in the architecture doc).
+**Expo (SDK 56) + React Native + TypeScript.** Cross-platform (iOS / Android / web) from one codebase; Android is the target device. In-memory seeded data + pure insight functions (no database yet — see the upgrade path in the architecture doc).
 
 ## Status
 
