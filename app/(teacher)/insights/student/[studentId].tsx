@@ -23,7 +23,13 @@ import {
 import { color, masteryTone, signalLabel, sp, toneStyle, weight } from '../../../../src/ui/tokens';
 
 const masteryFill = (tone: string): string =>
-  tone === 'ok' ? color.ok : tone === 'warn' ? color.warn : color.struggle;
+  tone === 'ok'
+    ? color.ok
+    : tone === 'warn'
+      ? color.warn
+      : tone === 'neutral'
+        ? color.inkMuted
+        : color.struggle;
 
 export default function StudentScreen() {
   const { studentId } = useLocalSearchParams<{ studentId: string }>();
