@@ -24,12 +24,39 @@ The differentiator isn't any single feature — those exist already. It's the **
 
 ## Status
 
-**Design stage — no app code yet.** The architecture and build order live in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+**Built.** The teacher-first MVP runs: an AI-assisted lesson library (CREATE) and a class-insights dashboard driven by seeded student data (UNDERSTAND), joined by the adapt loop. The mocked AI sits behind [src/ai/index.ts](src/ai/index.ts) - swap that one line for a real Claude client. Architecture and the real-backend upgrade path live in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
-## Running (once scaffolded)
+## Running
 
 ```bash
-npx expo start
+pnpm install
+pnpm start
 ```
 
-Then open in **Expo Go** — scan the QR from a physical Android or iPhone (works from Windows), or use `--android` (emulator) / `--web`. Works fully offline after first load (mocked AI + in-memory data).
+Then open in **Expo Go** - scan the QR from a physical Android or iPhone (works from Windows), or press `a` (Android emulator) / `w` (web). Works fully offline after first load (mocked AI + in-memory data).
+
+Two runnable checks pin the logic, no test framework:
+
+```bash
+pnpm check      # insight aggregation + AI mock
+pnpm typecheck
+```
+
+## Demo flow
+
+**Understand then Adapt (the loop):**
+
+1. The app opens on the **class dashboard**. The headline reads **"32% struggled with Ionic Bonding"** - recomputed from raw submissions by the aggregation layer, never stored.
+2. Tap the headline to drill into **Ionic Bonding**: the 8 students below the pass line, the signals MELDA captured, and a jump into the lesson that teaches it.
+3. Tap a student to see their mastery across every concept.
+4. Open the lesson and **Adapt** a section - pick "Simpler", "Worked example" and so on, and MELDA re-casts it for the students who did not get it. The adaptation is grafted inline under the original section.
+
+**Create:** Lessons tab, **New**, type a topic. MELDA drafts a full lesson (explanation, example, activity, check); save it to the library as a draft, then publish.
+
+## Project layout
+
+- `app/` - screens and navigation (Expo Router file routes)
+- `src/domain/` - data model, deterministic seed, insight aggregation
+- `src/ai/` - the swappable AI interface plus the deterministic mock
+- `src/ui/` - design tokens and the shared component kit
+- `src/state/` - the teacher's mutable lessons (Zustand)

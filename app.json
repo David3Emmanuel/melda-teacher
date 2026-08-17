@@ -5,7 +5,7 @@
     "scheme": "melda",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "android": {
       "package": "com.melda.app"
