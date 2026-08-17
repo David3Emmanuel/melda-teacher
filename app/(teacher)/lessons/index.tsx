@@ -10,7 +10,7 @@ import { color, sp } from '../../../src/ui/tokens';
 
 export default function LessonsLibrary() {
   const router = useRouter();
-  const lessons = useAppStore((s) => s.lessons);
+  const lessons = useAppStore((s) => s.data.lessons);
 
   return (
     <Screen

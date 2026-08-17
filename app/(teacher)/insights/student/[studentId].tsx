@@ -6,8 +6,8 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { dataset } from '../../../../src/data/seed';
 import { signalCounts, studentDetail } from '../../../../src/domain/insights/aggregate';
+import { useAppStore } from '../../../../src/state/store';
 import {
   Avatar,
   Badge,
@@ -34,7 +34,8 @@ const masteryFill = (tone: string): string =>
 export default function StudentScreen() {
   const { studentId } = useLocalSearchParams<{ studentId: string }>();
   const router = useRouter();
-  const detail = useMemo(() => studentDetail(dataset, studentId), [studentId]);
+  const data = useAppStore((s) => s.data);
+  const detail = useMemo(() => studentDetail(data, studentId), [data, studentId]);
 
   if (!detail) {
     return (

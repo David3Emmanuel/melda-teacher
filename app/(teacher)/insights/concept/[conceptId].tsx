@@ -6,7 +6,6 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { dataset } from '../../../../src/data/seed';
 import { conceptDetail } from '../../../../src/domain/insights/aggregate';
 import { useAppStore } from '../../../../src/state/store';
 import {
@@ -36,8 +35,9 @@ import {
 export default function ConceptScreen() {
   const { conceptId } = useLocalSearchParams<{ conceptId: string }>();
   const router = useRouter();
-  const detail = useMemo(() => conceptDetail(dataset, conceptId), [conceptId]);
-  const lesson = useAppStore((s) => s.lessons.find((l) => l.conceptIds.includes(conceptId ?? '')));
+  const data = useAppStore((s) => s.data);
+  const detail = useMemo(() => conceptDetail(data, conceptId), [data, conceptId]);
+  const lesson = data.lessons.find((l) => l.conceptIds.includes(conceptId ?? ''));
 
   if (!detail) {
     return (

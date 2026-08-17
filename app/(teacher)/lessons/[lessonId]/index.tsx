@@ -21,7 +21,7 @@ const KIND_LABEL: Record<SectionKind, string> = {
 export default function LessonDetail() {
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
   const router = useRouter();
-  const lesson = useAppStore((s) => s.lessons.find((l) => l.id === lessonId));
+  const lesson = useAppStore((s) => s.data.lessons.find((l) => l.id === lessonId));
   const publishLesson = useAppStore((s) => s.publishLesson);
   const published = lesson?.status === 'published';
 

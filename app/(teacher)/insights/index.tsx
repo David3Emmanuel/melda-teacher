@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ai } from '../../../src/ai';
-import { dataset } from '../../../src/data/seed';
+import { useAppStore } from '../../../src/state/store';
 import {
   classSummary,
   conceptInsights,
@@ -31,14 +31,15 @@ import { color, masteryTone, signalLabel, sp, weight } from '../../../src/ui/tok
 
 export default function InsightsDashboard() {
   const router = useRouter();
-  const summary = useMemo(() => classSummary(dataset), []);
-  const insights = useMemo(() => conceptInsights(dataset), []);
+  const data = useAppStore((s) => s.data);
+  const summary = useMemo(() => classSummary(data), [data]);
+  const insights = useMemo(() => conceptInsights(data), [data]);
   const needs = useMemo(
     () =>
-      studentsByNeed(dataset)
+      studentsByNeed(data)
         .filter((n) => n.struggleCount > 0)
         .slice(0, 5),
-    [],
+    [data],
   );
   const avgMastery = useMemo(
     () =>

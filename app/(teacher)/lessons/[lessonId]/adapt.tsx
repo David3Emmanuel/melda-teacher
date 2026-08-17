@@ -9,7 +9,6 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ai } from '../../../../src/ai';
-import { dataset } from '../../../../src/data/seed';
 import { conceptInsights } from '../../../../src/domain/insights/aggregate';
 import type { AdaptationMode } from '../../../../src/domain/models';
 import { newId, useAppStore } from '../../../../src/state/store';
@@ -41,13 +40,14 @@ export default function AdaptSection() {
     conceptId: string;
   }>();
   const router = useRouter();
-  const lesson = useAppStore((s) => s.lessons.find((l) => l.id === lessonId));
+  const data = useAppStore((s) => s.data);
   const addAdaptation = useAppStore((s) => s.addAdaptation);
+  const lesson = data.lessons.find((l) => l.id === lessonId);
   const section = lesson?.sections.find((sec) => sec.id === sectionId);
-  const concept = dataset.concepts.find((c) => c.id === conceptId);
+  const concept = data.concepts.find((c) => c.id === conceptId);
   const strugglePct = useMemo(
-    () => conceptInsights(dataset).find((i) => i.conceptId === conceptId)?.strugglePct,
-    [conceptId],
+    () => conceptInsights(data).find((i) => i.conceptId === conceptId)?.strugglePct,
+    [data, conceptId],
   );
 
   const [mode, setMode] = useState<AdaptationMode>('simpler');
