@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "MELDA",
+    "slug": "melda",
+    "scheme": "melda",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.melda.app"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-status-bar"]
+  }
+}
