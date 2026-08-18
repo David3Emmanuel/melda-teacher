@@ -14,7 +14,7 @@
 //     signals are only ever appended.
 
 import { STRUGGLE_THRESHOLD } from './insights/aggregate';
-import type { Answer, Assignment, LearningSignal, Submission } from './models';
+import type { Answer, Assignment, Dataset, LearningSignal, Student, Submission } from './models';
 
 /** questionId -> chosen choice index. A missing entry means an unanswered question. */
 export type Selections = Record<string, number>;
@@ -115,4 +115,69 @@ export function upsertSubmission(submissions: Submission[], sub: Submission): Su
     (s) => !(s.assignmentId === sub.assignmentId && s.studentId === sub.studentId),
   );
   return [sub, ...rest];
+}
+
+// --- live tracking -----------------------------------------------------------
+// The teacher's view of one review as it lands: who has submitted, their score,
+// and the class average so far. Pure over the dataset, so the tracker screen
+// recomputes on every store change without any wiring.
+
+export interface ProgressRow {
+  student: Student;
+  submitted: boolean;
+  /** Correct answers and question count; falls back to the assignment length when unsubmitted. */
+  correct: number;
+  total: number;
+}
+
+export interface AssignmentProgress {
+  assignment: Assignment;
+  studentCount: number;
+  submittedCount: number;
+  /** Mean score over submitted papers only, 0..100, or null before any come in. */
+  avgScorePct: number | null;
+  /** One row per student, submitted first, then in roster order. */
+  rows: ProgressRow[];
+}
+
+export function assignmentProgress(
+  dataset: Dataset,
+  assignmentId: string,
+): AssignmentProgress | null {
+  const assignment = dataset.assignments.find((a) => a.id === assignmentId);
+  if (!assignment) return null;
+
+  // One submission per student (upsertSubmission guarantees no duplicates).
+  const byStudent = new Map<string, Submission>();
+  for (const sub of dataset.submissions) {
+    if (sub.assignmentId === assignmentId) byStudent.set(sub.studentId, sub);
+  }
+
+  const rows: ProgressRow[] = dataset.students.map((student) => {
+    const sub = byStudent.get(student.id);
+    return {
+      student,
+      submitted: sub !== undefined,
+      correct: sub ? sub.answers.filter((a) => a.correct).length : 0,
+      total: sub ? sub.answers.length : assignment.questions.length,
+    };
+  });
+  rows.sort((a, b) => Number(b.submitted) - Number(a.submitted));
+
+  const submitted = rows.filter((r) => r.submitted);
+  const avgScorePct = submitted.length
+    ? Math.round(
+        (submitted.reduce((sum, r) => sum + (r.total ? r.correct / r.total : 0), 0) /
+          submitted.length) *
+          100,
+      )
+    : null;
+
+  return {
+    assignment,
+    studentCount: dataset.students.length,
+    submittedCount: submitted.length,
+    avgScorePct,
+    rows,
+  };
 }

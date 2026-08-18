@@ -12,8 +12,11 @@ import type {
   AIService,
   AdaptationDraft,
   DraftLessonInput,
+  DraftQuizInput,
   LessonDraft,
   NarrateInsightInput,
+  QuizDraft,
+  QuizDraftQuestion,
 } from './types';
 
 const delay = (ms: number): Promise<void> =>
@@ -86,6 +89,34 @@ export class MockAIService implements AIService {
         },
       ],
     };
+  }
+
+  async draftQuiz(input: DraftQuizInput): Promise<QuizDraft> {
+    await delay(this.latencyMs);
+    const topic = input.topic.trim() || 'this topic';
+    const count = Math.max(1, Math.min(input.count ?? 4, 10));
+    // Templated question stems, cycled so a quiz of any length reads varied. The
+    // correct choice plainly affirms the topic; distractors are labelled
+    // misconceptions. A real ClaudeAIService (see ./index.ts) writes genuine
+    // questions - this only needs to be coherent and gradeable.
+    const stems = [
+      (t: string) => `Which statement about ${t} is correct?`,
+      (t: string) => `What best defines ${t}?`,
+      (t: string) => `Which is a valid example of ${t}?`,
+      (t: string) => `A student describes ${t}. Which description is right?`,
+      (t: string) => `Which of these is true of ${t}?`,
+    ];
+    const questions: QuizDraftQuestion[] = Array.from({ length: count }, (_, i) => {
+      // Rotate the answer key so it is not always choice A.
+      const correctIndex = i % 4;
+      const choices = [0, 1, 2, 3].map((j) =>
+        j === correctIndex
+          ? `A correct statement about ${topic}`
+          : `A common misconception about ${topic} (${j + 1})`,
+      );
+      return { prompt: stems[i % stems.length](topic), choices, correctIndex };
+    });
+    return { title: `${titleCase(topic)} Review`, questions };
   }
 
   async adaptSection(input: AdaptSectionInput): Promise<AdaptationDraft> {

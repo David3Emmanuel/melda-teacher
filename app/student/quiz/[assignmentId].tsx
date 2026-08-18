@@ -25,8 +25,8 @@ export default function Quiz() {
 
   if (!studentId) return <Redirect href="/student" />;
 
-  const { assignment } = data;
-  if (assignment.id !== assignmentId) {
+  const assignment = data.assignments.find((a) => a.id === assignmentId);
+  if (!assignment) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Review' }} />

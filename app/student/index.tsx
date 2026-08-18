@@ -54,12 +54,6 @@ function StudentHome({ studentId }: { studentId: string }) {
     );
   }
 
-  const { assignment } = data;
-  const submission = data.submissions.find(
-    (s) => s.assignmentId === assignment.id && s.studentId === studentId,
-  );
-  const correct = submission?.answers.filter((a) => a.correct).length ?? 0;
-  const total = submission?.answers.length ?? assignment.questions.length;
   const published = data.lessons.filter((l) => l.status === 'published');
   const firstName = student.name.split(' ')[0];
 
@@ -71,29 +65,43 @@ function StudentHome({ studentId }: { studentId: string }) {
         <Button title="Switch" variant="ghost" size="sm" onPress={() => setCurrentStudent(null)} />
       }
     >
-      <Card onPress={() => router.push(`/student/quiz/${assignment.id}`)}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Badge label={submission ? 'Submitted' : 'To do'} tone={submission ? 'ok' : 'warn'} dot />
-          {submission ? (
-            <Txt variant="tiny" c={color.inkMuted}>
-              Scored {correct}/{total}
+      <Txt variant="h3">Your reviews</Txt>
+      {data.assignments.map((a) => {
+        const submission = data.submissions.find(
+          (s) => s.assignmentId === a.id && s.studentId === studentId,
+        );
+        const correct = submission?.answers.filter((x) => x.correct).length ?? 0;
+        const total = submission?.answers.length ?? a.questions.length;
+        return (
+          <Card key={a.id} onPress={() => router.push(`/student/quiz/${a.id}`)}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Badge
+                label={submission ? 'Submitted' : 'To do'}
+                tone={submission ? 'ok' : 'warn'}
+                dot
+              />
+              {submission ? (
+                <Txt variant="tiny" c={color.inkMuted}>
+                  Scored {correct}/{total}
+                </Txt>
+              ) : null}
+            </Row>
+            <Txt variant="h3" style={{ marginTop: sp.sm }}>
+              {a.title}
             </Txt>
-          ) : null}
-        </Row>
-        <Txt variant="h3" style={{ marginTop: sp.sm }}>
-          {assignment.title}
-        </Txt>
-        <Txt variant="small" c={color.inkMuted} style={{ marginTop: 2 }}>
-          {assignment.questions.length} questions
-        </Txt>
-        <Button
-          title={submission ? 'Retake the review' : 'Start the review'}
-          icon="✏️"
-          size="sm"
-          style={{ marginTop: sp.md }}
-          onPress={() => router.push(`/student/quiz/${assignment.id}`)}
-        />
-      </Card>
+            <Txt variant="small" c={color.inkMuted} style={{ marginTop: 2 }}>
+              {a.questions.length} questions
+            </Txt>
+            <Button
+              title={submission ? 'Retake the review' : 'Start the review'}
+              icon="✏️"
+              size="sm"
+              style={{ marginTop: sp.md }}
+              onPress={() => router.push(`/student/quiz/${a.id}`)}
+            />
+          </Card>
+        );
+      })}
 
       <Txt variant="h3" style={{ marginTop: sp.sm }}>
         Your lessons

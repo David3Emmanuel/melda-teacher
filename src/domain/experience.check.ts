@@ -11,7 +11,12 @@
 
 import { dataset } from '../data/seed';
 import { conceptInsights } from './insights/aggregate';
-import { buildSubmission, upsertSubmission, type Selections } from './experience';
+import {
+  assignmentProgress,
+  buildSubmission,
+  upsertSubmission,
+  type Selections,
+} from './experience';
 
 function ok(value: unknown, msg?: string): asserts value {
   if (!value) throw new Error(msg ?? 'assertion failed');
@@ -29,7 +34,7 @@ const check = (label: string, fn: () => void): void => {
   console.log(`  ok  ${label}`);
 };
 
-const { assignment } = dataset;
+const assignment = dataset.assignments[0];
 const ASSESSED_CONCEPTS = new Set(assignment.questions.map((q) => q.conceptId)).size;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
@@ -111,6 +116,33 @@ check('an ionic struggler acing the re-sit drops class struggle 32% -> 28%', () 
   const after = conceptInsights(next).find((c) => c.conceptId === 'c-ionic')!;
   eq(after.strugglers, 7, 'one fewer struggler');
   eq(after.strugglePct, 28, 'headline moves to 28%');
+});
+
+check('assignmentProgress tallies the roster and the class average for a review', () => {
+  const prog = assignmentProgress(dataset, assignment.id)!;
+  ok(prog, 'the seeded assignment resolves');
+  eq(prog.rows.length, dataset.students.length, 'one row per student');
+  eq(prog.submittedCount, dataset.students.length, 'all seeded students submitted');
+  ok(
+    prog.rows.every((r) => r.submitted),
+    'every seeded row is marked submitted',
+  );
+  ok(prog.avgScorePct !== null && prog.avgScorePct > 0, 'a class average is computed');
+
+  // An assignment nobody has taken yet: full roster, zero submitted, no average.
+  const empty = clone(dataset);
+  const fresh = { ...assignment, id: 'a-fresh' };
+  empty.assignments = [fresh, ...empty.assignments];
+  const p2 = assignmentProgress(empty, 'a-fresh')!;
+  eq(p2.submittedCount, 0, 'nobody has submitted the fresh review');
+  eq(p2.avgScorePct, null, 'no average before any submissions');
+  eq(p2.rows.length, empty.students.length, 'still one row per student');
+  ok(
+    p2.rows.every((r) => !r.submitted && r.total === fresh.questions.length),
+    'unsubmitted rows fall back to the question count',
+  );
+
+  eq(assignmentProgress(dataset, 'nope'), null, 'unknown assignment id is null');
 });
 
 console.log(`\n${checks} experience checks passed.`);

@@ -77,7 +77,8 @@ export interface Question {
 
 export interface Assignment {
   id: ID;
-  lessonId: ID;
+  /** The lesson this reviews, when authored from one. Standalone quizzes omit it. */
+  lessonId?: ID;
   title: string;
   questions: Question[];
   dueAt: string;
@@ -141,7 +142,7 @@ export interface Dataset {
   students: Student[];
   concepts: Concept[];
   lessons: Lesson[];
-  assignment: Assignment;
+  assignments: Assignment[];
   submissions: Submission[];
   signals: LearningSignal[];
 }

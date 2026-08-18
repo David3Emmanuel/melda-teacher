@@ -561,7 +561,7 @@ export const dataset: Dataset = {
   students,
   concepts,
   lessons,
-  assignment,
+  assignments: [assignment],
   submissions,
   signals,
 };

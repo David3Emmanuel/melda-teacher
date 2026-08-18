@@ -14,7 +14,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { dataset } from '../data/seed';
 import { upsertSubmission, type SubmissionResult } from '../domain/experience';
-import type { Adaptation, Dataset, LearningSignal, Lesson } from '../domain/models';
+import type { Adaptation, Assignment, Dataset, LearningSignal, Lesson } from '../domain/models';
 import { attachPersistence } from './persist';
 
 interface AppState {
@@ -27,6 +27,8 @@ interface AppState {
   addLesson: (lesson: Lesson) => void;
   addAdaptation: (lessonId: string, adaptation: Adaptation) => void;
   publishLesson: (lessonId: string) => void;
+  // Teacher authors a new review; it joins the class's assignments.
+  addAssignment: (assignment: Assignment) => void;
   // EXPERIENCE writes: a graded submission (replacing any prior attempt) plus the
   // signals it emitted, and one-off signals from reading (asked for help, etc.).
   submitAssignment: (result: SubmissionResult) => void;
@@ -41,7 +43,7 @@ const cloneSeed = (): Dataset => JSON.parse(JSON.stringify(dataset));
 
 // Bump the version suffix on any Dataset shape change: the old key is then
 // ignored and the store reseeds cleanly (acceptable data loss for a demo).
-const STORAGE_KEY = 'melda-store-v1';
+const STORAGE_KEY = 'melda-store-v2';
 
 // Runtime ids only need to be unique within a session; Date.now is fine here
 // (unlike the seed, this is not part of the reproducible dataset).
@@ -53,6 +55,8 @@ export const useAppStore = create<AppState>((set) => ({
   setCurrentStudent: (id) => set({ currentStudentId: id }),
   addLesson: (lesson) =>
     set((s) => ({ data: { ...s.data, lessons: [lesson, ...s.data.lessons] } })),
+  addAssignment: (assignment) =>
+    set((s) => ({ data: { ...s.data, assignments: [assignment, ...s.data.assignments] } })),
   addAdaptation: (lessonId, adaptation) =>
     set((s) => ({
       data: {

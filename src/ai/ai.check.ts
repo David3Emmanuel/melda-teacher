@@ -34,6 +34,29 @@ async function main(): Promise<void> {
     ok(kinds.includes('explanation') && kinds.includes('check'));
   });
 
+  await check(
+    'draftQuiz returns the asked-for count with in-range, topic-named questions',
+    async () => {
+      const quiz = await ai.draftQuiz({ topic: 'acids and bases', count: 5 });
+      ok(quiz.title.toLowerCase().includes('acids and bases'), 'title names the topic');
+      eq(quiz.questions.length, 5, 'one question per requested count');
+      for (const q of quiz.questions) {
+        eq(q.choices.length, 4, 'four choices');
+        ok(q.correctIndex >= 0 && q.correctIndex < q.choices.length, 'correct index is in range');
+        ok(q.prompt.toLowerCase().includes('acids and bases'), 'prompt names the topic');
+        ok(
+          q.choices[q.correctIndex].toLowerCase().includes('correct'),
+          'the key points at a real answer',
+        );
+      }
+      // Answer key must vary, not sit on choice A every time.
+      ok(
+        new Set(quiz.questions.map((q) => q.correctIndex)).size > 1,
+        'the answer key is not constant',
+      );
+    },
+  );
+
   await check('adaptSection produces distinct, concept-named copy for all six modes', async () => {
     const modes: AdaptationMode[] = [
       'simpler',
