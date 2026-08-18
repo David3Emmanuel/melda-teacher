@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "check:insights": "tsx src/domain/insights/insights.check.ts",
     "check:ai": "tsx src/ai/ai.check.ts",
+    "check:claude": "tsx src/ai/claude.check.ts",
     "check:persist": "tsx src/state/persist.check.ts",
     "check:experience": "tsx src/domain/experience.check.ts",
-    "check": "pnpm check:insights && pnpm check:ai && pnpm check:persist && pnpm check:experience",
+    "check": "pnpm check:insights && pnpm check:ai && pnpm check:claude && pnpm check:persist && pnpm check:experience",
     "format": "prettier --write ."
   },
   "dependencies": {
