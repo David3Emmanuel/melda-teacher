@@ -27,6 +27,7 @@ export default function TeacherTabs() {
     >
       <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: icon('📊') }} />
       <Tabs.Screen name="lessons" options={{ title: 'Lessons', tabBarIcon: icon('📚') }} />
+      <Tabs.Screen name="reviews" options={{ title: 'Reviews', tabBarIcon: icon('📝') }} />
     </Tabs>
   );
 }
