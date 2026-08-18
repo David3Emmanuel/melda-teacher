@@ -13,14 +13,24 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { dataset } from '../data/seed';
-import type { Adaptation, Dataset, Lesson } from '../domain/models';
+import { upsertSubmission, type SubmissionResult } from '../domain/experience';
+import type { Adaptation, Dataset, LearningSignal, Lesson } from '../domain/models';
 import { attachPersistence } from './persist';
 
 interface AppState {
   data: Dataset;
+  // Who the EXPERIENCE flow is acting as. Session-only (not part of `data`, so
+  // not persisted): a reload drops you back to the role picker, which is fine
+  // for a demo and keeps the persistence seam about the dataset alone.
+  currentStudentId: string | null;
+  setCurrentStudent: (id: string | null) => void;
   addLesson: (lesson: Lesson) => void;
   addAdaptation: (lessonId: string, adaptation: Adaptation) => void;
   publishLesson: (lessonId: string) => void;
+  // EXPERIENCE writes: a graded submission (replacing any prior attempt) plus the
+  // signals it emitted, and one-off signals from reading (asked for help, etc.).
+  submitAssignment: (result: SubmissionResult) => void;
+  recordSignal: (signal: LearningSignal) => void;
   resetDemo: () => void;
 }
 
@@ -39,6 +49,8 @@ export const newId = (prefix: string): string => `${prefix}-${Date.now()}`;
 
 export const useAppStore = create<AppState>((set) => ({
   data: cloneSeed(),
+  currentStudentId: null,
+  setCurrentStudent: (id) => set({ currentStudentId: id }),
   addLesson: (lesson) =>
     set((s) => ({ data: { ...s.data, lessons: [lesson, ...s.data.lessons] } })),
   addAdaptation: (lessonId, adaptation) =>
@@ -57,6 +69,16 @@ export const useAppStore = create<AppState>((set) => ({
         lessons: s.data.lessons.map((l) => (l.id === lessonId ? { ...l, status: 'published' } : l)),
       },
     })),
+  submitAssignment: ({ submission, signals }) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        submissions: upsertSubmission(s.data.submissions, submission),
+        signals: [...s.data.signals, ...signals],
+      },
+    })),
+  recordSignal: (signal) =>
+    set((s) => ({ data: { ...s.data, signals: [...s.data.signals, signal] } })),
   resetDemo: () => set({ data: cloneSeed() }),
 }));
 
