@@ -18,7 +18,7 @@ import {
   Screen,
   Txt,
 } from '../../../src/ui/components';
-import { color, sp } from '../../../src/ui/tokens';
+import { color, dueLabel, sp, toneStyle, weight } from '../../../src/ui/tokens';
 
 export default function ReviewsList() {
   const router = useRouter();
@@ -47,6 +47,7 @@ export default function ReviewsList() {
 
       {(reviews ?? []).map((prog) => {
         const done = prog.submittedCount === prog.studentCount;
+        const due = dueLabel(prog.assignment.dueAt);
         return (
           <Card
             key={prog.assignment.id}
@@ -67,9 +68,16 @@ export default function ReviewsList() {
             <Txt variant="h3" style={{ marginTop: sp.sm }}>
               {prog.assignment.title}
             </Txt>
-            <Txt variant="tiny" c={color.inkMuted} style={{ marginTop: sp.sm }}>
-              {prog.assignment.questions.length} questions
-            </Txt>
+            <Row style={{ justifyContent: 'space-between', marginTop: sp.sm }}>
+              <Txt variant="tiny" c={color.inkMuted}>
+                {prog.assignment.questions.length} questions
+              </Txt>
+              {due.text ? (
+                <Txt variant="tiny" w={weight.semibold} c={toneStyle(due.tone).fg}>
+                  {due.text}
+                </Txt>
+              ) : null}
+            </Row>
           </Card>
         );
       })}
