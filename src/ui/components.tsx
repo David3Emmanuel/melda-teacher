@@ -326,6 +326,22 @@ export function BarRow(props: {
   );
 }
 
+// --- loading -----------------------------------------------------------------
+// Fills its container with a centred spinner while a screen's first fetch is in
+// flight. Screens render this instead of a half-empty layout.
+export function Loading(props: { label?: string }) {
+  return (
+    <View style={styles.loading}>
+      <ActivityIndicator color={color.accent} />
+      {props.label ? (
+        <Txt variant="small" c={color.inkMuted}>
+          {props.label}
+        </Txt>
+      ) : null}
+    </View>
+  );
+}
+
 // --- empty state -------------------------------------------------------------
 export function EmptyState(props: { title: string; body?: string; icon?: string }) {
   return (
@@ -393,4 +409,12 @@ const styles = StyleSheet.create({
   },
   fill: { height: 10, minWidth: 6, borderRadius: radius.pill },
   empty: { alignItems: 'center', gap: sp.sm, padding: sp.xl },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: sp.md,
+    padding: sp.xl,
+    backgroundColor: color.appBg,
+  },
 });
