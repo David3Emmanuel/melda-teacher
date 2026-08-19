@@ -16,6 +16,9 @@ interface SessionState {
   token: string | null;
   user: AuthUser | null;
   currentClass: ClassCard | null;
+  // Every class this teacher can view (a teacher can own more than one). Kept so
+  // the dashboard can offer a switcher; `signIn` already fetches this list.
+  classes: ClassCard[];
   // False until the first hydrate resolves, so the root layout can hold the UI
   // behind a splash rather than flash the login screen over a valid session.
   hydrated: boolean;
@@ -30,31 +33,41 @@ interface SessionState {
 
 // Bump the suffix on any stored-shape change: the old value is then ignored and
 // the app boots signed-out (acceptable - the token is re-obtainable by login).
-const STORAGE_KEY = 'melda-session-v1';
+const STORAGE_KEY = 'melda-session-v2';
 
-const persist = (s: Pick<SessionState, 'token' | 'user' | 'currentClass'>) =>
+const persist = (s: Pick<SessionState, 'token' | 'user' | 'currentClass' | 'classes'>) =>
   AsyncStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ token: s.token, user: s.user, currentClass: s.currentClass }),
+    JSON.stringify({
+      token: s.token,
+      user: s.user,
+      currentClass: s.currentClass,
+      classes: s.classes,
+    }),
   );
 
 export const useSession = create<SessionState>((set, get) => ({
   token: null,
   user: null,
   currentClass: null,
+  classes: [],
   hydrated: false,
 
   hydrate: async () => {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const saved = JSON.parse(raw) as Pick<SessionState, 'token' | 'user' | 'currentClass'>;
+        const saved = JSON.parse(raw) as Pick<
+          SessionState,
+          'token' | 'user' | 'currentClass' | 'classes'
+        >;
         if (saved.token) {
           setAuthToken(saved.token);
           set({
             token: saved.token,
             user: saved.user,
             currentClass: saved.currentClass,
+            classes: saved.classes ?? [],
             hydrated: true,
           });
           return;
@@ -70,21 +83,21 @@ export const useSession = create<SessionState>((set, get) => ({
     setAuthToken(auth.token);
     const classes = await api.myClasses();
     const currentClass = classes[0] ?? null;
-    set({ token: auth.token, user: auth.user, currentClass });
-    await persist({ token: auth.token, user: auth.user, currentClass });
+    set({ token: auth.token, user: auth.user, currentClass, classes });
+    await persist({ token: auth.token, user: auth.user, currentClass, classes });
     return currentClass;
   },
 
   signOut: () => {
     setAuthToken(null);
-    set({ token: null, user: null, currentClass: null });
+    set({ token: null, user: null, currentClass: null, classes: [] });
     void AsyncStorage.removeItem(STORAGE_KEY);
   },
 
   setCurrentClass: (currentClass) => {
-    const { token, user } = get();
+    const { token, user, classes } = get();
     set({ currentClass });
-    if (token) void persist({ token, user, currentClass });
+    if (token) void persist({ token, user, currentClass, classes });
   },
 }));
 

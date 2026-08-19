@@ -6,7 +6,7 @@
 // screen only renders what the server aggregated.
 
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../../src/api/client';
 import { useApi } from '../../../src/api/useApi';
@@ -19,6 +19,7 @@ import {
   Card,
   Divider,
   EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -26,7 +27,16 @@ import {
   StatTile,
   Txt,
 } from '../../../src/ui/components';
-import { color, masteryTone, signalLabel, sp, weight } from '../../../src/ui/tokens';
+import {
+  color,
+  masteryTone,
+  radius,
+  signalLabel,
+  sp,
+  struggleTone,
+  toneFill,
+  weight,
+} from '../../../src/ui/tokens';
 
 export default function InsightsDashboard() {
   const router = useRouter();
@@ -34,9 +44,10 @@ export default function InsightsDashboard() {
   const classId = currentClass?.id ?? '';
   const { data, loading, error, reload } = useApi(() => api.insights(classId));
 
-  // Two-tap confirm for the demo reset, moved into the dashboard header now that
-  // the role picker is gone. Armed state is local, so leaving the screen disarms
-  // it - no accidental wipe. It re-seeds the class on the backend, then refetches.
+  // Two-tap confirm for the demo reset. This re-seeds the whole class, so it is
+  // gated to dev builds (__DEV__) - it must never render in a classroom where one
+  // stray tap would wipe real state. Armed state is local, so leaving the screen
+  // disarms it. On confirm it re-seeds on the backend, then refetches.
   const [armed, setArmed] = useState(false);
   const [resetting, setResetting] = useState(false);
   const onReset = async () => {
@@ -53,7 +64,7 @@ export default function InsightsDashboard() {
       setResetting(false);
     }
   };
-  const resetControl = (
+  const resetControl = __DEV__ ? (
     <Button
       title={armed ? 'Confirm reset' : 'Reset demo'}
       icon="↺"
@@ -64,7 +75,7 @@ export default function InsightsDashboard() {
         void onReset();
       }}
     />
-  );
+  ) : null;
 
   const title = data?.summary.className ?? currentClass?.name ?? 'Insights';
 
@@ -79,12 +90,7 @@ export default function InsightsDashboard() {
   if (error || !data) {
     return (
       <Screen title={title} subtitle={currentClass?.subject} right={resetControl}>
-        <EmptyState
-          title="Could not load insights"
-          body={error ?? 'Something went wrong.'}
-          icon="⚠️"
-        />
-        <Button title="Try again" variant="secondary" onPress={reload} />
+        <ErrorState title="Could not load insights" message={error ?? undefined} onRetry={reload} />
       </Screen>
     );
   }
@@ -104,6 +110,7 @@ export default function InsightsDashboard() {
   if (summary.submissionCount === 0) {
     return (
       <Screen title={summary.className} subtitle={currentClass?.subject} right={resetControl}>
+        <ClassSwitcher />
         <StatTile label="Students" value={String(summary.studentCount)} caption="in this class" />
         <EmptyState
           title="No submissions yet"
@@ -121,6 +128,7 @@ export default function InsightsDashboard() {
 
   return (
     <Screen title={summary.className} subtitle={currentClass?.subject} right={resetControl}>
+      <ClassSwitcher />
       {top ? (
         <Card onPress={() => router.push(`/(teacher)/insights/concept/${top.conceptId}`)}>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -183,6 +191,7 @@ export default function InsightsDashboard() {
                   label={i.name}
                   value={i.strugglePct}
                   display={`${i.strugglePct}%`}
+                  fill={toneFill(struggleTone(i.strugglePct).tone)}
                   sub={`${i.strugglers} of ${i.attempted} struggling - avg mastery ${i.avgMasteryPct}%`}
                   onPress={() => router.push(`/(teacher)/insights/concept/${i.conceptId}`)}
                 />
@@ -262,5 +271,49 @@ export default function InsightsDashboard() {
         )}
       </View>
     </Screen>
+  );
+}
+
+// A teacher can own more than one class, but sign-in silently lands on the first
+// (classes[0]) with no way to reach the rest. This surfaces every class as a
+// selectable pill and calls setCurrentClass, which every screen already reads
+// through useSession. Rendered nothing when there is only one class, so the
+// common single-class teacher sees no extra chrome.
+function ClassSwitcher() {
+  const classes = useSession((s) => s.classes);
+  const currentId = useSession((s) => s.currentClass?.id);
+  const setCurrentClass = useSession((s) => s.setCurrentClass);
+  if (classes.length <= 1) return null;
+  return (
+    <Row wrap gap={sp.sm}>
+      {classes.map((c) => {
+        const active = c.id === currentId;
+        return (
+          <Pressable
+            key={c.id}
+            onPress={() => setCurrentClass(c)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`View ${c.name}`}
+            style={{
+              paddingVertical: sp.xs,
+              paddingHorizontal: sp.md,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              borderColor: active ? color.accent : color.border,
+              backgroundColor: active ? color.accentSoft : color.card,
+            }}
+          >
+            <Txt
+              variant="small"
+              w={active ? weight.semibold : weight.regular}
+              c={active ? color.accentInk : color.inkSecondary}
+            >
+              {c.name}
+            </Txt>
+          </Pressable>
+        );
+      })}
+    </Row>
   );
 }

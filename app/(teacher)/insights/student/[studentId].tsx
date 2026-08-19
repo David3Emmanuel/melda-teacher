@@ -15,29 +15,28 @@ import {
   BarRow,
   Card,
   Divider,
-  EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
   SectionTitle,
   Txt,
 } from '../../../../src/ui/components';
-import { color, masteryTone, signalLabel, sp, toneStyle, weight } from '../../../../src/ui/tokens';
-
-const masteryFill = (tone: string): string =>
-  tone === 'ok'
-    ? color.ok
-    : tone === 'warn'
-      ? color.warn
-      : tone === 'neutral'
-        ? color.inkMuted
-        : color.struggle;
+import {
+  color,
+  masteryTone,
+  signalLabel,
+  sp,
+  toneFill,
+  toneStyle,
+  weight,
+} from '../../../../src/ui/tokens';
 
 export default function StudentScreen() {
   const { studentId } = useLocalSearchParams<{ studentId: string }>();
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const { data, loading, error } = useApi(() => api.studentDetail(classId, studentId));
+  const { data, loading, error, reload } = useApi(() => api.studentDetail(classId, studentId));
 
   if (loading && !data) {
     return (
@@ -52,7 +51,11 @@ export default function StudentScreen() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Student' }} />
-        <EmptyState title="Could not load this student" body={error ?? undefined} icon="🔍" />
+        <ErrorState
+          title="Could not load this student"
+          message={error ?? undefined}
+          onRetry={reload}
+        />
       </Screen>
     );
   }
@@ -108,7 +111,7 @@ export default function StudentScreen() {
                   value={p.masteryPct ?? 0}
                   display={p.masteryPct === null ? 'No data' : `${p.masteryPct}%`}
                   sub={t.label}
-                  fill={masteryFill(t.tone)}
+                  fill={toneFill(t.tone)}
                   onPress={() => router.push(`/(teacher)/insights/concept/${p.conceptId}`)}
                 />
               </View>
