@@ -1,22 +1,23 @@
 // Adapt a section: the teacher picks a mode (simpler, worked example, visual...)
-// and MELDA re-casts the section for the students who did not get it. The
-// struggle % shown here is the real aggregated figure, passed into the prompt so
-// the copy can reference it; the re-cast prose is what the AI produces. Saving
-// grafts the adaptation onto the lesson, where it appears inline under the
-// original section.
+// and MELDA re-casts the section for the students who did not get it (POST
+// /ai/adapt-section). The struggle % shown here is the real aggregated figure
+// (pulled from the class insights) and is passed into the prompt so the copy can
+// reference it. Saving posts the adaptation (POST /lessons/:id/adaptations),
+// where it appears inline under the original section.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ai } from '../../../../src/ai';
-import { conceptInsights } from '../../../../src/domain/insights/aggregate';
-import type { AdaptationMode } from '../../../../src/domain/models';
-import { newId, useAppStore } from '../../../../src/state/store';
+import type { AdaptationMode } from 'melda-shared';
+import { api } from '../../../../src/api/client';
+import { useApi } from '../../../../src/api/useApi';
+import { useSession } from '../../../../src/state/store';
 import {
   Badge,
   Button,
   Card,
   EmptyState,
+  Loading,
   Row,
   Screen,
   SectionTitle,
@@ -40,57 +41,81 @@ export default function AdaptSection() {
     conceptId: string;
   }>();
   const router = useRouter();
-  const data = useAppStore((s) => s.data);
-  const addAdaptation = useAppStore((s) => s.addAdaptation);
-  const lesson = data.lessons.find((l) => l.id === lessonId);
-  const section = lesson?.sections.find((sec) => sec.id === sectionId);
-  const concept = data.concepts.find((c) => c.id === conceptId);
-  const strugglePct = useMemo(
-    () => conceptInsights(data).find((i) => i.conceptId === conceptId)?.strugglePct,
-    [data, conceptId],
-  );
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
+  const { data, loading, error } = useApi(async () => {
+    const [lesson, insights] = await Promise.all([api.lesson(lessonId), api.insights(classId)]);
+    return {
+      lesson,
+      section: lesson.sections.find((s) => s.id === sectionId) ?? null,
+      insight: insights.concepts.find((c) => c.conceptId === conceptId) ?? null,
+    };
+  });
 
   const [mode, setMode] = useState<AdaptationMode>('simpler');
   const [draft, setDraft] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
-  if (!lesson || !section) {
+  if (loading && !data) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Adapt' }} />
-        <EmptyState title="Section not found" icon="🔍" />
+        <Loading />
       </Screen>
     );
   }
 
-  // A seeded lesson names a real concept; a freshly drafted one carries a
-  // synthetic id, so fall back to the lesson title for the prompt.
-  const conceptName = concept?.name ?? lesson.title;
+  if (error || !data || !data.section) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Adapt' }} />
+        <EmptyState title="Could not load this section" body={error ?? undefined} icon="🔍" />
+      </Screen>
+    );
+  }
+
+  const { lesson, section, insight } = data;
+  // An assessed concept carries a name and a real struggle %; a freshly drafted
+  // concept has no submissions yet, so fall back to the lesson title for the prompt.
+  const conceptName = insight?.name ?? lesson.title;
+  const strugglePct = insight?.strugglePct;
 
   const generate = async () => {
-    setLoading(true);
-    const res = await ai.adaptSection({
-      conceptName,
-      sectionTitle: section.title,
-      originalBody: section.body,
-      mode,
-      strugglePct,
-    });
-    setDraft(res.body);
-    setLoading(false);
+    setGenerating(true);
+    setFailure(null);
+    try {
+      const res = await api.adaptSection({
+        conceptName,
+        sectionTitle: section.title,
+        originalBody: section.body,
+        mode,
+        strugglePct,
+      });
+      setDraft(res.body);
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : 'Could not generate the adaptation.');
+    } finally {
+      setGenerating(false);
+    }
   };
 
-  const save = () => {
+  const save = async () => {
     if (!draft) return;
-    addAdaptation(lesson.id, {
-      id: newId('adapt'),
-      sectionId: section.id,
-      conceptId: conceptId ?? section.conceptId,
-      mode,
-      body: draft,
-      createdAt: new Date().toISOString(),
-    });
-    router.back();
+    setSaving(true);
+    setFailure(null);
+    try {
+      await api.createAdaptation(lesson.id, {
+        sectionId: section.id,
+        conceptId: conceptId ?? section.conceptId,
+        mode,
+        body: draft,
+      });
+      router.back();
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : 'Could not save the adaptation.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -130,9 +155,15 @@ export default function AdaptSection() {
       <Button
         title={draft ? 'Regenerate' : 'Generate with MELDA'}
         icon="✨"
-        loading={loading}
+        loading={generating}
         onPress={generate}
       />
+
+      {failure ? (
+        <Txt variant="small" c={color.struggle}>
+          {failure}
+        </Txt>
+      ) : null}
 
       {draft ? (
         <>
@@ -144,7 +175,13 @@ export default function AdaptSection() {
               {draft}
             </Txt>
           </Card>
-          <Button title="Save to lesson" icon="✓" variant="secondary" onPress={save} />
+          <Button
+            title="Save to lesson"
+            icon="✓"
+            variant="secondary"
+            loading={saving}
+            onPress={save}
+          />
         </>
       ) : null}
     </Screen>

@@ -1,31 +1,48 @@
-// The lesson library - the CREATE layer's home. Lists every lesson (seeded and
-// teacher-made), its status, and how many MELDA adaptations it has grown. "New"
-// opens the AI-assisted draft flow; tapping a lesson opens it for editing and
-// adapting.
+// The lesson library - the CREATE layer's home. Lists every lesson for the class
+// (GET /classes/:id/lessons), its status, and how many MELDA adaptations it has
+// grown. "New" opens the AI-assisted draft flow; tapping a lesson opens it for
+// editing and adapting.
 
 import { useRouter } from 'expo-router';
-import { useAppStore } from '../../../src/state/store';
-import { Badge, Button, Card, Row, Screen, Txt } from '../../../src/ui/components';
+import { api } from '../../../src/api/client';
+import { useApi } from '../../../src/api/useApi';
+import { useSession } from '../../../src/state/store';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Loading,
+  Row,
+  Screen,
+  Txt,
+} from '../../../src/ui/components';
 import { color, sp } from '../../../src/ui/tokens';
 
 export default function LessonsLibrary() {
   const router = useRouter();
-  const lessons = useAppStore((s) => s.data.lessons);
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
+  const { data: lessons, loading, error } = useApi(() => api.lessons(classId));
+
+  const right = (
+    <Button title="New" icon="+" size="sm" onPress={() => router.push('/(teacher)/lessons/new')} />
+  );
 
   return (
-    <Screen
-      title="Lessons"
-      subtitle="Your Chemistry unit"
-      right={
-        <Button
-          title="New"
-          icon="+"
-          size="sm"
-          onPress={() => router.push('/(teacher)/lessons/new')}
+    <Screen title="Lessons" subtitle="Lessons you have written" right={right}>
+      {loading && !lessons ? <Loading /> : null}
+
+      {error ? <EmptyState title="Could not load lessons" body={error} icon="⚠️" /> : null}
+
+      {lessons && lessons.length === 0 ? (
+        <EmptyState
+          title="No lessons yet"
+          body="Draft one with MELDA to start your unit."
+          icon="📚"
         />
-      }
-    >
-      {lessons.map((l) => (
+      ) : null}
+
+      {(lessons ?? []).map((l) => (
         <Card key={l.id} onPress={() => router.push(`/(teacher)/lessons/${l.id}`)}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Badge

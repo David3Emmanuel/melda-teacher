@@ -1,14 +1,25 @@
 // Lesson detail: the sections a lesson is made of, any MELDA adaptations grafted
 // onto them, and the actions a teacher takes here - adapt a section that is not
-// landing, or publish a draft. Adaptations are shown inline under the section
+// landing, or publish a draft. Loaded from GET /lessons/:id; publish posts to
+// /lessons/:id/publish and refetches. Adaptations show inline under the section
 // they re-cast, so the "understand -> adapt" loop is visible in one place.
 
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import type { SectionKind } from '../../../../src/domain/models';
-import { useAppStore } from '../../../../src/state/store';
-import { Badge, Button, Card, EmptyState, Row, Screen, Txt } from '../../../../src/ui/components';
+import type { SectionKind } from 'melda-shared';
+import { api } from '../../../../src/api/client';
+import { useApi } from '../../../../src/api/useApi';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Loading,
+  Row,
+  Screen,
+  Txt,
+} from '../../../../src/ui/components';
 import { adaptationLabel, color, radius, sp, weight } from '../../../../src/ui/tokens';
 
 const KIND_LABEL: Record<SectionKind, string> = {
@@ -21,20 +32,38 @@ const KIND_LABEL: Record<SectionKind, string> = {
 export default function LessonDetail() {
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
   const router = useRouter();
-  const lesson = useAppStore((s) => s.data.lessons.find((l) => l.id === lessonId));
-  const publishLesson = useAppStore((s) => s.publishLesson);
-  const published = lesson?.status === 'published';
+  const { data: lesson, loading, error, reload } = useApi(() => api.lesson(lessonId));
+  const [publishing, setPublishing] = useState(false);
 
-  const sections = useMemo(() => lesson?.sections ?? [], [lesson]);
-
-  if (!lesson) {
+  if (loading && !lesson) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Lesson' }} />
-        <EmptyState title="Lesson not found" icon="🔍" />
+        <Loading />
       </Screen>
     );
   }
+
+  if (error || !lesson) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Lesson' }} />
+        <EmptyState title="Could not load this lesson" body={error ?? undefined} icon="🔍" />
+      </Screen>
+    );
+  }
+
+  const published = lesson.status === 'published';
+
+  const publish = async () => {
+    setPublishing(true);
+    try {
+      await api.publishLesson(lesson.id);
+      reload();
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   return (
     <Screen>
@@ -47,7 +76,7 @@ export default function LessonDetail() {
         </Txt>
       </View>
 
-      {sections.map((sec) => {
+      {lesson.sections.map((sec) => {
         const adaptations = lesson.adaptations.filter((a) => a.sectionId === sec.id);
         return (
           <Card key={sec.id}>
@@ -96,7 +125,7 @@ export default function LessonDetail() {
       })}
 
       {!published ? (
-        <Button title="Publish lesson" icon="✓" onPress={() => publishLesson(lesson.id)} />
+        <Button title="Publish lesson" icon="✓" loading={publishing} onPress={publish} />
       ) : null}
     </Screen>
   );

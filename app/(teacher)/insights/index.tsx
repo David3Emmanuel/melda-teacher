@@ -1,19 +1,16 @@
 // The class dashboard - the screen the whole app is built to reach. It opens on
-// the headline "32% struggled with Ionic Bonding" (recomputed from raw
-// submissions, never stored), lets the teacher drill into any concept or
-// student, and shows the breadth of signals MELDA collected. The numbers are
-// real aggregation; only the one-paragraph read is AI-narrated.
+// the headline "32% struggled with Ionic Bonding" and lets the teacher drill into
+// any concept or student. The numbers, the ranked concepts, the follow-up list
+// and the one-paragraph narration are all computed on the backend (GET
+// /classes/:id/insights) so nothing can drift between the app and the data - the
+// screen only renders what the server aggregated.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ai } from '../../../src/ai';
-import { useAppStore } from '../../../src/state/store';
-import {
-  classSummary,
-  conceptInsights,
-  studentsByNeed,
-} from '../../../src/domain/insights/aggregate';
+import { api } from '../../../src/api/client';
+import { useApi } from '../../../src/api/useApi';
+import { useSession } from '../../../src/state/store';
 import {
   Avatar,
   Badge,
@@ -21,6 +18,8 @@ import {
   Button,
   Card,
   Divider,
+  EmptyState,
+  Loading,
   Row,
   Screen,
   SectionTitle,
@@ -31,48 +30,97 @@ import { color, masteryTone, signalLabel, sp, weight } from '../../../src/ui/tok
 
 export default function InsightsDashboard() {
   const router = useRouter();
-  const data = useAppStore((s) => s.data);
-  const summary = useMemo(() => classSummary(data), [data]);
-  const insights = useMemo(() => conceptInsights(data), [data]);
-  const needs = useMemo(
-    () =>
-      studentsByNeed(data)
-        .filter((n) => n.struggleCount > 0)
-        .slice(0, 5),
-    [data],
+  const currentClass = useSession((s) => s.currentClass);
+  const classId = currentClass?.id ?? '';
+  const { data, loading, error, reload } = useApi(() => api.insights(classId));
+
+  // Two-tap confirm for the demo reset, moved into the dashboard header now that
+  // the role picker is gone. Armed state is local, so leaving the screen disarms
+  // it - no accidental wipe. It re-seeds the class on the backend, then refetches.
+  const [armed, setArmed] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const onReset = async () => {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    setResetting(true);
+    try {
+      await api.resetDemo(classId);
+      setArmed(false);
+      reload();
+    } finally {
+      setResetting(false);
+    }
+  };
+  const resetControl = (
+    <Button
+      title={armed ? 'Confirm reset' : 'Reset demo'}
+      icon="↺"
+      variant="ghost"
+      size="sm"
+      loading={resetting}
+      onPress={() => {
+        void onReset();
+      }}
+    />
   );
-  const avgMastery = useMemo(
-    () =>
-      insights.length
-        ? Math.round(insights.reduce((sum, i) => sum + i.avgMasteryPct, 0) / insights.length)
-        : 0,
-    [insights],
-  );
+
+  const title = data?.summary.className ?? currentClass?.name ?? 'Insights';
+
+  if (loading && !data) {
+    return (
+      <Screen title={title} subtitle={currentClass?.subject}>
+        <Loading label="Reading the class" />
+      </Screen>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Screen title={title} subtitle={currentClass?.subject} right={resetControl}>
+        <EmptyState
+          title="Could not load insights"
+          body={error ?? 'Something went wrong.'}
+          icon="⚠️"
+        />
+        <Button title="Try again" variant="secondary" onPress={reload} />
+      </Screen>
+    );
+  }
+
+  const { summary, concepts, studentsByNeed, narration } = data;
+  const needs = studentsByNeed.filter((n) => n.struggleCount > 0).slice(0, 5);
+  const avgMastery = concepts.length
+    ? Math.round(concepts.reduce((sum, c) => sum + c.avgMasteryPct, 0) / concepts.length)
+    : 0;
   const top = summary.topStruggle;
-
-  const [narration, setNarration] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    ai.narrateInsight({
-      className: summary.className,
-      studentCount: summary.studentCount,
-      topConceptName: top?.name ?? '',
-      topStrugglePct: top?.strugglePct ?? 0,
-      avgMasteryPct: avgMastery,
-    }).then((text) => {
-      if (alive) setNarration(text);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [summary, top, avgMastery]);
-
   const topSignals = summary.signalCounts.slice(0, 5);
   const maxSignal = topSignals[0]?.count ?? 1;
   const mastery = masteryTone(avgMastery);
 
+  // Zero-state: with no submissions there is nothing to aggregate, so skip the
+  // "0% / Struggling" theatre and point the teacher at the next step instead.
+  if (summary.submissionCount === 0) {
+    return (
+      <Screen title={summary.className} subtitle={currentClass?.subject} right={resetControl}>
+        <StatTile label="Students" value={String(summary.studentCount)} caption="in this class" />
+        <EmptyState
+          title="No submissions yet"
+          body="Set a review for the class. As students hand in, MELDA shows you here where they are struggling."
+          icon="📭"
+        />
+        <Button
+          title="Create a review"
+          icon="+"
+          onPress={() => router.push('/(teacher)/reviews/new')}
+        />
+      </Screen>
+    );
+  }
+
   return (
-    <Screen title={summary.className} subtitle="Class insights from the last assignment">
+    <Screen title={summary.className} subtitle={currentClass?.subject} right={resetControl}>
       {top ? (
         <Card onPress={() => router.push(`/(teacher)/insights/concept/${top.conceptId}`)}>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -101,7 +149,7 @@ export default function InsightsDashboard() {
           <Txt variant="h3">What MELDA sees</Txt>
         </Row>
         <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.sm }}>
-          {narration ?? 'Reading the class...'}
+          {narration}
         </Txt>
       </Card>
 
@@ -126,20 +174,28 @@ export default function InsightsDashboard() {
           title="Where students are struggling"
           caption="Share of the class below the pass line, by concept"
         />
-        <Card>
-          {insights.map((i, idx) => (
-            <View key={i.conceptId}>
-              {idx > 0 ? <Divider /> : null}
-              <BarRow
-                label={i.name}
-                value={i.strugglePct}
-                display={`${i.strugglePct}%`}
-                sub={`${i.strugglers} of ${i.attempted} struggling - avg mastery ${i.avgMasteryPct}%`}
-                onPress={() => router.push(`/(teacher)/insights/concept/${i.conceptId}`)}
-              />
-            </View>
-          ))}
-        </Card>
+        {concepts.length ? (
+          <Card>
+            {concepts.map((i, idx) => (
+              <View key={i.conceptId}>
+                {idx > 0 ? <Divider /> : null}
+                <BarRow
+                  label={i.name}
+                  value={i.strugglePct}
+                  display={`${i.strugglePct}%`}
+                  sub={`${i.strugglers} of ${i.attempted} struggling - avg mastery ${i.avgMasteryPct}%`}
+                  onPress={() => router.push(`/(teacher)/insights/concept/${i.conceptId}`)}
+                />
+              </View>
+            ))}
+          </Card>
+        ) : (
+          <EmptyState
+            title="Nothing below the pass line"
+            body="Every assessed concept is on track."
+            icon="✅"
+          />
+        )}
       </View>
 
       {needs.length ? (
@@ -182,20 +238,28 @@ export default function InsightsDashboard() {
           title="Signals MELDA collected"
           caption={`${summary.totalSignals} learning signals from the student app`}
         />
-        <Card>
-          {topSignals.map((s, idx) => (
-            <View key={s.type}>
-              {idx > 0 ? <Divider /> : null}
-              <BarRow
-                label={signalLabel[s.type] ?? s.type}
-                value={s.count}
-                max={maxSignal}
-                display={String(s.count)}
-                fill={color.accent}
-              />
-            </View>
-          ))}
-        </Card>
+        {topSignals.length ? (
+          <Card>
+            {topSignals.map((s, idx) => (
+              <View key={s.type}>
+                {idx > 0 ? <Divider /> : null}
+                <BarRow
+                  label={signalLabel[s.type] ?? s.type}
+                  value={s.count}
+                  max={maxSignal}
+                  display={String(s.count)}
+                  fill={color.accent}
+                />
+              </View>
+            ))}
+          </Card>
+        ) : (
+          <EmptyState
+            title="No signals yet"
+            body="Signals appear as students read lessons and submit reviews."
+            icon="📡"
+          />
+        )}
       </View>
     </Screen>
   );

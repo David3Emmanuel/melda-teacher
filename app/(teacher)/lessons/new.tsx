@@ -1,14 +1,15 @@
-// AI-assisted "new lesson": the teacher types a topic, MELDA drafts a full
-// lesson (explanation, example, activity, check), and saving drops it into the
-// library as a draft they can then edit, adapt, and publish. The draft is the
-// AI's job; everything after saving is real app state.
+// AI-assisted "new lesson": the teacher types a topic, MELDA drafts a full lesson
+// (POST /ai/draft-lesson), and saving posts it to the class (POST
+// /classes/:id/lessons), where the backend resolves the topic to a real concept
+// and stores the lesson as a draft. The draft is the AI's job; everything after
+// saving is real, server-owned state.
 
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { ai, type LessonDraft } from '../../../src/ai';
-import type { Lesson } from '../../../src/domain/models';
-import { newId, useAppStore } from '../../../src/state/store';
+import type { LessonDraft } from 'melda-shared';
+import { api } from '../../../src/api/client';
+import { useSession } from '../../../src/state/store';
 import { Badge, Button, Card, Row, Screen, SectionTitle, Txt } from '../../../src/ui/components';
 import { color, radius, sp, weight } from '../../../src/ui/tokens';
 
@@ -21,44 +22,43 @@ const KIND_LABEL: Record<string, string> = {
 
 export default function NewLesson() {
   const router = useRouter();
-  const addLesson = useAppStore((s) => s.addLesson);
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
   const [topic, setTopic] = useState('');
   const [draft, setDraft] = useState<LessonDraft | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generate = async () => {
     const t = topic.trim();
     if (!t) return;
     setLoading(true);
-    const res = await ai.draftLesson({ topic: t, gradeLevel: 'Grade 10' });
-    setDraft(res);
-    setLoading(false);
+    setError(null);
+    try {
+      setDraft(await api.draftLesson({ topic: t, gradeLevel: 'Grade 10' }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not draft the lesson.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const save = () => {
+  const save = async () => {
     if (!draft) return;
-    // A brand-new topic is not one of the assessed concepts, so it gets its own
-    // synthetic concept id shared by every section - enough to keep the lesson
-    // self-consistent without touching the seeded insight data.
-    const conceptId = newId('concept');
-    const lesson: Lesson = {
-      id: newId('lesson'),
-      title: draft.title,
-      summary: draft.summary,
-      conceptIds: [conceptId],
-      sections: draft.sections.map((s, i) => ({
-        id: newId(`sec-${i}`),
-        title: s.title,
-        kind: s.kind,
-        body: s.body,
-        conceptId,
-      })),
-      status: 'draft',
-      createdAt: new Date().toISOString(),
-      adaptations: [],
-    };
-    addLesson(lesson);
-    router.replace(`/(teacher)/lessons/${lesson.id}`);
+    setSaving(true);
+    setError(null);
+    try {
+      const { id } = await api.createLesson(classId, {
+        topic: topic.trim(),
+        title: draft.title,
+        summary: draft.summary,
+        sections: draft.sections.map((s) => ({ title: s.title, kind: s.kind, body: s.body })),
+      });
+      router.replace(`/(teacher)/lessons/${id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the lesson.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,6 +97,12 @@ export default function NewLesson() {
         onPress={generate}
       />
 
+      {error ? (
+        <Txt variant="small" c={color.struggle}>
+          {error}
+        </Txt>
+      ) : null}
+
       {draft ? (
         <>
           <View>
@@ -123,7 +129,7 @@ export default function NewLesson() {
             </Card>
           ))}
 
-          <Button title="Save to lessons" icon="✓" onPress={save} />
+          <Button title="Save to lessons" icon="✓" loading={saving} onPress={save} />
         </>
       ) : null}
     </Screen>

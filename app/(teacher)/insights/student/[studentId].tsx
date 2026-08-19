@@ -1,13 +1,14 @@
 // Student drill-down: one learner's mastery across every assessed concept, plus
-// the raw signals they generated. Tapping a concept row jumps to the whole
-// class for that concept. Mastery bars are coloured by status band and always
-// carry a text label, so colour is never the only cue.
+// the raw signals they generated (GET /classes/:id/students/:studentId). Tapping
+// a concept row jumps to the whole class for that concept. Mastery bars are
+// coloured by status band and always carry a text label, so colour is never the
+// only cue.
 
-import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { signalCounts, studentDetail } from '../../../../src/domain/insights/aggregate';
-import { useAppStore } from '../../../../src/state/store';
+import { api } from '../../../../src/api/client';
+import { useApi } from '../../../../src/api/useApi';
+import { useSession } from '../../../../src/state/store';
 import {
   Avatar,
   Badge,
@@ -15,6 +16,7 @@ import {
   Card,
   Divider,
   EmptyState,
+  Loading,
   Row,
   Screen,
   SectionTitle,
@@ -34,21 +36,38 @@ const masteryFill = (tone: string): string =>
 export default function StudentScreen() {
   const { studentId } = useLocalSearchParams<{ studentId: string }>();
   const router = useRouter();
-  const data = useAppStore((s) => s.data);
-  const detail = useMemo(() => studentDetail(data, studentId), [data, studentId]);
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
+  const { data, loading, error } = useApi(() => api.studentDetail(classId, studentId));
 
-  if (!detail) {
+  if (loading && !data) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Student' }} />
-        <EmptyState title="Student not found" icon="🔍" />
+        <Loading />
       </Screen>
     );
   }
 
-  const { student, overallMasteryPct, perConcept, signals } = detail;
+  if (error || !data) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Student' }} />
+        <EmptyState title="Could not load this student" body={error ?? undefined} icon="🔍" />
+      </Screen>
+    );
+  }
+
+  const { student, overallMasteryPct, perConcept, signals } = data;
   const overall = masteryTone(overallMasteryPct);
-  const counts = signalCounts(signals);
+
+  // Tally the student's signals by type, most frequent first. This is the one
+  // bit of aggregation the screen does itself (everything else the server
+  // computes); it stays here so melda-shared can be a types-only dependency.
+  const counts = [
+    ...signals.reduce((m, s) => m.set(s.type, (m.get(s.type) ?? 0) + 1), new Map<string, number>()),
+  ]
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count);
 
   return (
     <Screen>

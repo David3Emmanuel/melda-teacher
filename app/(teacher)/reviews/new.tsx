@@ -1,56 +1,66 @@
-// AI-assisted "new review": the teacher types a topic, MELDA drafts a set of
-// multiple-choice questions, and saving drops the review into the class so the
-// live tracker can follow it in. The draft is the AI's job; the graded
-// Assignment it becomes is real app state students then answer.
+// AI-assisted "new review": the teacher types a topic, MELDA drafts multiple-
+// choice questions (POST /ai/draft-quiz), and saving posts the review to the
+// class (POST /classes/:id/assignments), where the backend resolves the topic to
+// a real concept so the tracker and insights close the loop. The draft is the
+// AI's job; the graded assignment it becomes is server-owned state.
 
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { ai, type QuizDraft } from '../../../src/ai';
-import type { Assignment } from '../../../src/domain/models';
-import { newId, useAppStore } from '../../../src/state/store';
+import type { QuizDraft } from 'melda-shared';
+import { api } from '../../../src/api/client';
+import { useSession } from '../../../src/state/store';
 import { Badge, Button, Card, Row, Screen, SectionTitle, Txt } from '../../../src/ui/components';
 import { color, radius, sp, weight } from '../../../src/ui/tokens';
 
+// A week from now, in whole days - the default window a review is open for.
+const DUE_IN_DAYS = 7;
+
 export default function NewReview() {
   const router = useRouter();
-  const addAssignment = useAppStore((s) => s.addAssignment);
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
   const [topic, setTopic] = useState('');
   const [draft, setDraft] = useState<QuizDraft | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generate = async () => {
     const t = topic.trim();
     if (!t) return;
     setLoading(true);
-    const res = await ai.draftQuiz({ topic: t, gradeLevel: 'Grade 10', count: 5 });
-    setDraft(res);
-    setLoading(false);
+    setError(null);
+    try {
+      setDraft(await api.draftQuiz({ topic: t, gradeLevel: 'Grade 10', count: 5 }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not draft the review.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const save = () => {
+  const save = async () => {
     if (!draft) return;
-    // A brand-new topic is not one of the assessed concepts, so every question
-    // shares one synthetic concept id - enough to grade and give a per-concept
-    // read-out without touching the seeded insight data.
-    const conceptId = newId('concept');
+    setSaving(true);
+    setError(null);
     const due = new Date();
-    due.setDate(due.getDate() + 7);
-    const assignment: Assignment = {
-      id: newId('a'),
-      title: draft.title,
-      questions: draft.questions.map((q, i) => ({
-        id: newId(`q-${i}`),
-        conceptId,
-        prompt: q.prompt,
-        kind: 'mcq',
-        choices: q.choices,
-        correctIndex: q.correctIndex,
-      })),
-      dueAt: due.toISOString(),
-    };
-    addAssignment(assignment);
-    router.replace(`/(teacher)/reviews/${assignment.id}`);
+    due.setDate(due.getDate() + DUE_IN_DAYS);
+    try {
+      const { id } = await api.createAssignment(classId, {
+        topic: topic.trim(),
+        title: draft.title,
+        dueAt: due.toISOString(),
+        questions: draft.questions.map((q) => ({
+          prompt: q.prompt,
+          choices: q.choices,
+          correctIndex: q.correctIndex,
+        })),
+      });
+      router.replace(`/(teacher)/reviews/${id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not set the review.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -88,6 +98,12 @@ export default function NewReview() {
         disabled={!topic.trim()}
         onPress={generate}
       />
+
+      {error ? (
+        <Txt variant="small" c={color.struggle}>
+          {error}
+        </Txt>
+      ) : null}
 
       {draft ? (
         <>
@@ -129,7 +145,7 @@ export default function NewReview() {
             </Card>
           ))}
 
-          <Button title="Set for the class" icon="✓" onPress={save} />
+          <Button title="Set for the class" icon="✓" loading={saving} onPress={save} />
         </>
       ) : null}
     </Screen>

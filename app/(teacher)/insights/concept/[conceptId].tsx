@@ -1,13 +1,14 @@
 // Concept drill-down: reached by tapping a struggle bar or the hero card. Shows
-// the recomputed struggle for one concept, exactly who is below the pass line,
-// the signals tied to it, and a jump into the lesson that teaches it - so the
-// UNDERSTAND layer hands straight back to CREATE.
+// the struggle for one concept (GET /classes/:id/concepts/:conceptId), exactly
+// who is below the pass line, the signals tied to it, and a jump into the lesson
+// that teaches it - so the UNDERSTAND layer hands straight back to CREATE. The
+// lesson link needs the class's lessons, so both are fetched together.
 
-import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { conceptDetail } from '../../../../src/domain/insights/aggregate';
-import { useAppStore } from '../../../../src/state/store';
+import { api } from '../../../../src/api/client';
+import { useApi } from '../../../../src/api/useApi';
+import { useSession } from '../../../../src/state/store';
 import {
   Avatar,
   Badge,
@@ -16,6 +17,7 @@ import {
   Card,
   Divider,
   EmptyState,
+  Loading,
   Row,
   Screen,
   SectionTitle,
@@ -35,20 +37,35 @@ import {
 export default function ConceptScreen() {
   const { conceptId } = useLocalSearchParams<{ conceptId: string }>();
   const router = useRouter();
-  const data = useAppStore((s) => s.data);
-  const detail = useMemo(() => conceptDetail(data, conceptId), [data, conceptId]);
-  const lesson = data.lessons.find((l) => l.conceptIds.includes(conceptId ?? ''));
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
+  const { data, loading, error } = useApi(async () => {
+    const [detail, lessons] = await Promise.all([
+      api.conceptDetail(classId, conceptId),
+      api.lessons(classId),
+    ]);
+    return { detail, lesson: lessons.find((l) => l.conceptIds.includes(conceptId)) ?? null };
+  });
 
-  if (!detail) {
+  if (loading && !data) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Concept' }} />
-        <EmptyState title="Concept not found" icon="🔍" />
+        <Loading />
       </Screen>
     );
   }
 
-  const { concept, insight, strugglingStudents, signalCounts } = detail;
+  if (error || !data) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Concept' }} />
+        <EmptyState title="Could not load this concept" body={error ?? undefined} icon="🔍" />
+      </Screen>
+    );
+  }
+
+  const { concept, insight, strugglingStudents, signalCounts } = data.detail;
+  const lesson = data.lesson;
   const st = struggleTone(insight.strugglePct);
   const mastery = masteryTone(insight.avgMasteryPct);
   const maxSignal = signalCounts[0]?.count ?? 1;

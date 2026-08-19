@@ -1,33 +1,42 @@
-// The live tracker for one review: who has handed in, their score, and the
-// class average so far. It reads assignmentProgress, a pure function over the
-// store, so every submission a student makes shows up here on the next render
-// with no wiring. This is the teacher side of the student->teacher loop.
+// The live tracker for one review: who has handed in, their score, and the class
+// average so far (GET /assignments/:id, which returns server-computed progress).
+// useApi refetches on focus, so navigating back here after a student submits
+// shows the new paper. This is the teacher side of the student->teacher loop.
 
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { assignmentProgress } from '../../../src/domain/experience';
-import { useAppStore } from '../../../src/state/store';
+import { api } from '../../../src/api/client';
+import { useApi } from '../../../src/api/useApi';
 import {
   Avatar,
   Badge,
   Card,
   EmptyState,
+  Loading,
   Row,
   Screen,
   StatTile,
   Txt,
 } from '../../../src/ui/components';
-import { color, masteryTone, sp } from '../../../src/ui/tokens';
+import { color, masteryTone } from '../../../src/ui/tokens';
 
 export default function ReviewTracker() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
-  const data = useAppStore((s) => s.data);
-  const prog = assignmentProgress(data, assignmentId);
+  const { data: prog, loading, error } = useApi(() => api.assignment(assignmentId));
 
-  if (!prog) {
+  if (loading && !prog) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Review' }} />
-        <EmptyState title="Review not found" icon="🔍" />
+        <Loading />
+      </Screen>
+    );
+  }
+
+  if (error || !prog) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Review' }} />
+        <EmptyState title="Could not load this review" body={error ?? undefined} icon="🔍" />
       </Screen>
     );
   }

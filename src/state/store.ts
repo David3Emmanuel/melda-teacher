@@ -1,92 +1,92 @@
-// The app's single source of truth: a mutable copy of the seeded Dataset.
+// Session state only. The dashboards no longer live here - the backend owns the
+// shared Dataset and computes every read model, so a screen fetches what it needs
+// through `api.*` and this store holds just enough to prove who you are and which
+// class you are looking at.
 //
-// The teacher's CREATE flow grows `data.lessons` (new lessons, adaptations,
-// publishing); the student EXPERIENCE flow appends `data.submissions` and
-// `data.signals`. The UNDERSTAND layer is pure functions over `data`, so the
-// dashboards recompute live as students act - nothing to sync.
-//
-// Persisted to AsyncStorage so a demo survives a reload (and works offline).
-// We persist by hand rather than via zustand's `persist` middleware: that
-// middleware's ESM build uses `import.meta`, which Metro's classic-script
-// output rejects on both web and Hermes. `resetDemo` restores the seed.
+// The JWT is persisted (AsyncStorage) so a reload keeps you signed in; on boot
+// `hydrate` reads it back and hands it to the API client. A 401 anywhere signs
+// you out once, everywhere (registered below as the client's unauthorized handler).
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { dataset } from '../data/seed';
-import { upsertSubmission, type SubmissionResult } from '../domain/experience';
-import type { Adaptation, Assignment, Dataset, LearningSignal, Lesson } from '../domain/models';
-import { attachPersistence } from './persist';
+import type { AuthResponse, AuthUser, ClassCard } from 'melda-shared';
+import { api, setAuthToken, setUnauthorizedHandler } from '../api/client';
 
-interface AppState {
-  data: Dataset;
-  // Who the EXPERIENCE flow is acting as. Session-only (not part of `data`, so
-  // not persisted): a reload drops you back to the role picker, which is fine
-  // for a demo and keeps the persistence seam about the dataset alone.
-  currentStudentId: string | null;
-  setCurrentStudent: (id: string | null) => void;
-  addLesson: (lesson: Lesson) => void;
-  addAdaptation: (lessonId: string, adaptation: Adaptation) => void;
-  publishLesson: (lessonId: string) => void;
-  // Teacher authors a new review; it joins the class's assignments.
-  addAssignment: (assignment: Assignment) => void;
-  // EXPERIENCE writes: a graded submission (replacing any prior attempt) plus the
-  // signals it emitted, and one-off signals from reading (asked for help, etc.).
-  submitAssignment: (result: SubmissionResult) => void;
-  recordSignal: (signal: LearningSignal) => void;
-  resetDemo: () => void;
+interface SessionState {
+  token: string | null;
+  user: AuthUser | null;
+  currentClass: ClassCard | null;
+  // False until the first hydrate resolves, so the root layout can hold the UI
+  // behind a splash rather than flash the login screen over a valid session.
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
+  // Establishes a session: authorizes the client, loads the teacher's classes,
+  // picks the first, and persists. Returns the chosen class (null if none), so
+  // the login screen can tell "no classes yet" from "wrong password".
+  signIn: (auth: AuthResponse) => Promise<ClassCard | null>;
+  signOut: () => void;
+  setCurrentClass: (klass: ClassCard) => void;
 }
 
-// The seed is pure JSON (string timestamps, no Dates/functions), so a
-// stringify round-trip is a correct deep clone - and keeps the seed module
-// itself immutable no matter what the store mutates.
-const cloneSeed = (): Dataset => JSON.parse(JSON.stringify(dataset));
+// Bump the suffix on any stored-shape change: the old value is then ignored and
+// the app boots signed-out (acceptable - the token is re-obtainable by login).
+const STORAGE_KEY = 'melda-session-v1';
 
-// Bump the version suffix on any Dataset shape change: the old key is then
-// ignored and the store reseeds cleanly (acceptable data loss for a demo).
-const STORAGE_KEY = 'melda-store-v2';
+const persist = (s: Pick<SessionState, 'token' | 'user' | 'currentClass'>) =>
+  AsyncStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ token: s.token, user: s.user, currentClass: s.currentClass }),
+  );
 
-// Runtime ids only need to be unique within a session; Date.now is fine here
-// (unlike the seed, this is not part of the reproducible dataset).
-export const newId = (prefix: string): string => `${prefix}-${Date.now()}`;
+export const useSession = create<SessionState>((set, get) => ({
+  token: null,
+  user: null,
+  currentClass: null,
+  hydrated: false,
 
-export const useAppStore = create<AppState>((set) => ({
-  data: cloneSeed(),
-  currentStudentId: null,
-  setCurrentStudent: (id) => set({ currentStudentId: id }),
-  addLesson: (lesson) =>
-    set((s) => ({ data: { ...s.data, lessons: [lesson, ...s.data.lessons] } })),
-  addAssignment: (assignment) =>
-    set((s) => ({ data: { ...s.data, assignments: [assignment, ...s.data.assignments] } })),
-  addAdaptation: (lessonId, adaptation) =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        lessons: s.data.lessons.map((l) =>
-          l.id === lessonId ? { ...l, adaptations: [adaptation, ...l.adaptations] } : l,
-        ),
-      },
-    })),
-  publishLesson: (lessonId) =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        lessons: s.data.lessons.map((l) => (l.id === lessonId ? { ...l, status: 'published' } : l)),
-      },
-    })),
-  submitAssignment: ({ submission, signals }) =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        submissions: upsertSubmission(s.data.submissions, submission),
-        signals: [...s.data.signals, ...signals],
-      },
-    })),
-  recordSignal: (signal) =>
-    set((s) => ({ data: { ...s.data, signals: [...s.data.signals, signal] } })),
-  resetDemo: () => set({ data: cloneSeed() }),
+  hydrate: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Pick<SessionState, 'token' | 'user' | 'currentClass'>;
+        if (saved.token) {
+          setAuthToken(saved.token);
+          set({
+            token: saved.token,
+            user: saved.user,
+            currentClass: saved.currentClass,
+            hydrated: true,
+          });
+          return;
+        }
+      }
+    } catch {
+      // Corrupt or absent value: fall through to a clean signed-out boot.
+    }
+    set({ hydrated: true });
+  },
+
+  signIn: async (auth) => {
+    setAuthToken(auth.token);
+    const classes = await api.myClasses();
+    const currentClass = classes[0] ?? null;
+    set({ token: auth.token, user: auth.user, currentClass });
+    await persist({ token: auth.token, user: auth.user, currentClass });
+    return currentClass;
+  },
+
+  signOut: () => {
+    setAuthToken(null);
+    set({ token: null, user: null, currentClass: null });
+    void AsyncStorage.removeItem(STORAGE_KEY);
+  },
+
+  setCurrentClass: (currentClass) => {
+    const { token, user } = get();
+    set({ currentClass });
+    if (token) void persist({ token, user, currentClass });
+  },
 }));
 
-// Hydrate from storage, then persist on every change (see persist.ts). A
-// corrupt or absent value keeps the seed; the seed is only written once the
-// first mutation lands, so a pristine install always reflects the latest seed.
-void attachPersistence(useAppStore, AsyncStorage, STORAGE_KEY);
+// An expired or rejected token anywhere in the app signs the user out once.
+setUnauthorizedHandler(() => useSession.getState().signOut());

@@ -1,32 +1,40 @@
-// The reviews list - the tracking layer's home. Each review shows how many of
-// the class have handed in so far; tapping opens the live tracker. "New" opens
-// the AI-assisted quiz draft flow. Progress is derived live from submissions,
-// so these counts move the instant a student submits.
+// The reviews list - the tracking layer's home. Each review shows how many of the
+// class have handed in so far (GET /classes/:id/assignments returns the full
+// progress per review); tapping opens the live tracker. "New" opens the
+// AI-assisted quiz draft flow.
 
 import { useRouter } from 'expo-router';
-import { assignmentProgress } from '../../../src/domain/experience';
-import { useAppStore } from '../../../src/state/store';
-import { Badge, Button, Card, EmptyState, Row, Screen, Txt } from '../../../src/ui/components';
+import { api } from '../../../src/api/client';
+import { useApi } from '../../../src/api/useApi';
+import { useSession } from '../../../src/state/store';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Loading,
+  Row,
+  Screen,
+  Txt,
+} from '../../../src/ui/components';
 import { color, sp } from '../../../src/ui/tokens';
 
 export default function ReviewsList() {
   const router = useRouter();
-  const data = useAppStore((s) => s.data);
+  const classId = useSession((s) => s.currentClass?.id) ?? '';
+  const { data: reviews, loading, error } = useApi(() => api.assignments(classId));
+
+  const right = (
+    <Button title="New" icon="+" size="sm" onPress={() => router.push('/(teacher)/reviews/new')} />
+  );
 
   return (
-    <Screen
-      title="Reviews"
-      subtitle="Quizzes you have set"
-      right={
-        <Button
-          title="New"
-          icon="+"
-          size="sm"
-          onPress={() => router.push('/(teacher)/reviews/new')}
-        />
-      }
-    >
-      {data.assignments.length === 0 ? (
+    <Screen title="Reviews" subtitle="Quizzes you have set" right={right}>
+      {loading && !reviews ? <Loading /> : null}
+
+      {error ? <EmptyState title="Could not load reviews" body={error} icon="⚠️" /> : null}
+
+      {reviews && reviews.length === 0 ? (
         <EmptyState
           title="No reviews yet"
           body="Draft one with MELDA to start tracking."
@@ -34,12 +42,13 @@ export default function ReviewsList() {
         />
       ) : null}
 
-      {data.assignments.map((a) => {
-        // Never null here: the id comes straight from the list we are mapping.
-        const prog = assignmentProgress(data, a.id)!;
+      {(reviews ?? []).map((prog) => {
         const done = prog.submittedCount === prog.studentCount;
         return (
-          <Card key={a.id} onPress={() => router.push(`/(teacher)/reviews/${a.id}`)}>
+          <Card
+            key={prog.assignment.id}
+            onPress={() => router.push(`/(teacher)/reviews/${prog.assignment.id}`)}
+          >
             <Row style={{ justifyContent: 'space-between' }}>
               <Badge
                 label={`${prog.submittedCount}/${prog.studentCount} handed in`}
@@ -53,10 +62,10 @@ export default function ReviewsList() {
               ) : null}
             </Row>
             <Txt variant="h3" style={{ marginTop: sp.sm }}>
-              {a.title}
+              {prog.assignment.title}
             </Txt>
             <Txt variant="tiny" c={color.inkMuted} style={{ marginTop: sp.sm }}>
-              {a.questions.length} questions
+              {prog.assignment.questions.length} questions
             </Txt>
           </Card>
         );

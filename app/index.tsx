@@ -1,48 +1,114 @@
 import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
 import { Button, Card, Screen, Txt } from '../src/ui/components';
-import { color, sp } from '../src/ui/tokens';
-import { useAppStore } from '../src/state/store';
+import { color, font, radius, sp, weight } from '../src/ui/tokens';
+import { api, ApiError } from '../src/api/client';
+import { useSession } from '../src/state/store';
 
-// The front door. MELDA is two surfaces over one brain: the teacher's CREATE +
-// UNDERSTAND tools and the student's EXPERIENCE. Both write to the same store,
-// so a student's work shows up in the teacher's dashboards live - which is the
-// whole demo. This picker just chooses which surface to open.
-export default function Index() {
+// The front door of the teacher app. MELDA is now three separate processes -
+// this app, the student app, and the backend that owns the shared data - so the
+// old "pick a role" screen is gone. A teacher signs in here; students use the
+// student app. A live session skips straight through to the dashboards.
+export default function Login() {
+  const token = useSession((s) => s.token);
+  const signIn = useSession((s) => s.signIn);
+  const signOut = useSession((s) => s.signOut);
   const router = useRouter();
-  const resetDemo = useAppStore((s) => s.resetDemo);
-  // Two-tap confirm: repeated demo runs pile up submissions in the persisted
-  // store, so reset restores the seed. Armed state is local, so navigating away
-  // disarms it - no accidental wipe.
-  const [armed, setArmed] = useState(false);
+
+  // Prefilled with the backend's seeded demo teacher so a reviewer signs in with
+  // one tap. See melda-backend's seed for the credentials.
+  const [email, setEmail] = useState('teacher@melda.africa');
+  const [password, setPassword] = useState('melda');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (token) return <Redirect href="/(teacher)/insights" />;
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const auth = await api.login({ email: email.trim(), password, role: 'teacher' });
+      const klass = await signIn(auth);
+      if (!klass) {
+        signOut();
+        setError('This account is not teaching any class yet.');
+        return;
+      }
+      router.replace('/(teacher)/insights');
+    } catch (e) {
+      // Clear any half-set token so a failed attempt leaves a clean signed-out state.
+      signOut();
+      setError(
+        e instanceof ApiError ? e.message : 'Could not reach MELDA. Is the backend running?',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Screen title="MELDA" subtitle="AI teaching assistant and learning companion">
-      <Txt variant="small" c={color.inkMuted}>
-        Who is using MELDA right now?
+    <Screen title="MELDA" subtitle="AI teaching assistant">
+      <Card style={{ gap: sp.md }}>
+        <Txt variant="h3">Teacher sign in</Txt>
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!busy}
+        />
+        <Field
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          editable={!busy}
+        />
+        {error ? (
+          <Txt variant="small" c={color.struggle}>
+            {error}
+          </Txt>
+        ) : null}
+        <Button title="Sign in" icon="→" loading={busy} onPress={submit} />
+      </Card>
+      <Txt variant="tiny" c={color.inkMuted} center>
+        Students learn in the MELDA student app.
       </Txt>
-      <Card onPress={() => router.push('/(teacher)/insights')}>
-        <Txt variant="h2">📊 Teacher</Txt>
-        <Txt variant="small" c={color.inkMuted} style={{ marginTop: sp.xs }}>
-          See where the class is struggling and adapt your lessons with MELDA.
-        </Txt>
-      </Card>
-      <Card onPress={() => router.push('/student')}>
-        <Txt variant="h2">🎒 Student</Txt>
-        <Txt variant="small" c={color.inkMuted} style={{ marginTop: sp.xs }}>
-          Read your lessons, ask for a simpler explanation, and take your review.
-        </Txt>
-      </Card>
-      <Button
-        title={armed ? 'Tap again to reset the class' : 'Reset demo data'}
-        icon="↺"
-        variant="ghost"
-        size="sm"
-        style={{ marginTop: sp.md }}
-        onPress={() => {
-          if (armed) resetDemo();
-          setArmed((a) => !a);
-        }}
-      />
     </Screen>
   );
 }
+
+// A labelled text field. Only login needs inputs in this app, so it stays local
+// rather than joining the shared UI kit.
+function Field({ label, ...rest }: { label: string } & TextInputProps) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Txt
+        variant="tiny"
+        c={color.inkMuted}
+        w={weight.semibold}
+        style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
+      >
+        {label}
+      </Txt>
+      <TextInput {...rest} placeholderTextColor={color.inkMuted} style={styles.input} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  input: {
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: radius.md,
+    backgroundColor: color.appBg,
+    paddingHorizontal: sp.md,
+    minHeight: 48,
+    color: color.ink,
+    fontSize: font.body,
+  },
+});
