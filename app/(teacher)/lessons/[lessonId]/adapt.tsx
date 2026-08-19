@@ -16,7 +16,7 @@ import {
   Badge,
   Button,
   Card,
-  EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -42,7 +42,7 @@ export default function AdaptSection() {
   }>();
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const { data, loading, error } = useApi(async () => {
+  const { data, loading, error, reload } = useApi(async () => {
     const [lesson, insights] = await Promise.all([api.lesson(lessonId), api.insights(classId)]);
     return {
       lesson,
@@ -70,7 +70,11 @@ export default function AdaptSection() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Adapt' }} />
-        <EmptyState title="Could not load this section" body={error ?? undefined} icon="🔍" />
+        <ErrorState
+          title="Could not load this section"
+          message={error ?? undefined}
+          onRetry={reload}
+        />
       </Screen>
     );
   }

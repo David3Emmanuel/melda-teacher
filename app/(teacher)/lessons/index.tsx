@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -22,7 +23,7 @@ import { color, sp } from '../../../src/ui/tokens';
 export default function LessonsLibrary() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const { data: lessons, loading, error } = useApi(() => api.lessons(classId));
+  const { data: lessons, loading, error, reload } = useApi(() => api.lessons(classId));
 
   const right = (
     <Button title="New" icon="+" size="sm" onPress={() => router.push('/(teacher)/lessons/new')} />
@@ -32,7 +33,9 @@ export default function LessonsLibrary() {
     <Screen title="Lessons" subtitle="Lessons you have written" right={right}>
       {loading && !lessons ? <Loading /> : null}
 
-      {error ? <EmptyState title="Could not load lessons" body={error} icon="⚠️" /> : null}
+      {error ? (
+        <ErrorState title="Could not load lessons" message={error} onRetry={reload} />
+      ) : null}
 
       {lessons && lessons.length === 0 ? (
         <EmptyState

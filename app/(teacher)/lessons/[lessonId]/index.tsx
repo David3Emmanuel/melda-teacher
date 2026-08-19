@@ -14,7 +14,7 @@ import {
   Badge,
   Button,
   Card,
-  EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -48,7 +48,11 @@ export default function LessonDetail() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Lesson' }} />
-        <EmptyState title="Could not load this lesson" body={error ?? undefined} icon="🔍" />
+        <ErrorState
+          title="Could not load this lesson"
+          message={error ?? undefined}
+          onRetry={reload}
+        />
       </Screen>
     );
   }

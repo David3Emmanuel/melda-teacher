@@ -10,7 +10,7 @@ import {
   Avatar,
   Badge,
   Card,
-  EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -21,7 +21,7 @@ import { color, masteryTone } from '../../../src/ui/tokens';
 
 export default function ReviewTracker() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
-  const { data: prog, loading, error } = useApi(() => api.assignment(assignmentId));
+  const { data: prog, loading, error, reload } = useApi(() => api.assignment(assignmentId));
 
   if (loading && !prog) {
     return (
@@ -36,7 +36,11 @@ export default function ReviewTracker() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Review' }} />
-        <EmptyState title="Could not load this review" body={error ?? undefined} icon="🔍" />
+        <ErrorState
+          title="Could not load this review"
+          message={error ?? undefined}
+          onRetry={reload}
+        />
       </Screen>
     );
   }

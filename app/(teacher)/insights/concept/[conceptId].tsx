@@ -16,7 +16,7 @@ import {
   Button,
   Card,
   Divider,
-  EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -38,7 +38,7 @@ export default function ConceptScreen() {
   const { conceptId } = useLocalSearchParams<{ conceptId: string }>();
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const { data, loading, error } = useApi(async () => {
+  const { data, loading, error, reload } = useApi(async () => {
     const [detail, lessons] = await Promise.all([
       api.conceptDetail(classId, conceptId),
       api.lessons(classId),
@@ -59,7 +59,11 @@ export default function ConceptScreen() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Concept' }} />
-        <EmptyState title="Could not load this concept" body={error ?? undefined} icon="🔍" />
+        <ErrorState
+          title="Could not load this concept"
+          message={error ?? undefined}
+          onRetry={reload}
+        />
       </Screen>
     );
   }

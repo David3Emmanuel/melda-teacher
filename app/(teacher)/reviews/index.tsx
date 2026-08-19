@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Loading,
   Row,
   Screen,
@@ -22,7 +23,7 @@ import { color, sp } from '../../../src/ui/tokens';
 export default function ReviewsList() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const { data: reviews, loading, error } = useApi(() => api.assignments(classId));
+  const { data: reviews, loading, error, reload } = useApi(() => api.assignments(classId));
 
   const right = (
     <Button title="New" icon="+" size="sm" onPress={() => router.push('/(teacher)/reviews/new')} />
@@ -32,7 +33,9 @@ export default function ReviewsList() {
     <Screen title="Reviews" subtitle="Quizzes you have set" right={right}>
       {loading && !reviews ? <Loading /> : null}
 
-      {error ? <EmptyState title="Could not load reviews" body={error} icon="⚠️" /> : null}
+      {error ? (
+        <ErrorState title="Could not load reviews" message={error} onRetry={reload} />
+      ) : null}
 
       {reviews && reviews.length === 0 ? (
         <EmptyState
