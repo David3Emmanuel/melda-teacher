@@ -1,134 +1,99 @@
-# MELDA — Architecture
+# MELDA — Architecture (teacher app)
 
 ## Purpose
 
-MELDA closes a teaching loop — **Prepare → Learn → Observe → Understand → Adapt** — with the least code that makes the loop real end to end. Three layers, one shared dataset:
+MELDA closes a teaching loop — **Prepare → Learn → Observe → Understand → Adapt** — across three layers:
 
 - **CREATE** — teachers author lessons and reviews (AI-assisted), and adapt sections that aren't landing.
 - **EXPERIENCE** — students read lessons, ask for a simpler explanation, and take reviews.
-- **UNDERSTAND** — teachers get aggregated, actionable insights, recomputed live from student work.
+- **UNDERSTAND** — teachers get aggregated, actionable insights, recomputed from real student work.
 
-The hypothesis: _do teachers find MELDA's insights useful enough to change how they teach?_ — now testable against a real student surface rather than a simulated one.
+This repo is the **teacher app** (CREATE + UNDERSTAND). The student surface and the data + AI they share live in sibling repos.
 
-## Design principle
+## The split: why this app owns no data
 
-Build the least that makes the loop real. No abstraction unless it is load-bearing. The one abstraction kept from day one is the **AI service boundary** — load-bearing for swapping the mock for real Claude. Two things were deliberately deferred at first and added once the loop demanded them: **persistence** (a student's work has to survive to reach the teacher) and the **student app** itself. Everything still heavier (SQLite, ORM/repositories, auth, a server-side AI proxy) remains **deferred with a named upgrade path**, not built now.
+MELDA began as one Expo app where the teacher and student surfaces shared a single in-process store — the loop worked only because both mutated the same in-memory `Dataset`. Once the two surfaces became separate apps (separate processes, separate devices), that shared memory was gone, so the shared state moved to a backend:
 
-## Stack
+- **[melda-backend](https://github.com/David3Emmanuel/melda-backend)** owns the class `Dataset` in Postgres, runs the deterministic aggregation, and proxies the Anthropic calls — **the key lives there, nowhere else**.
+- **[melda-shared](https://github.com/David3Emmanuel/melda-shared)** holds the pure domain types, the aggregation/experience logic, and the REST DTOs — one source of truth the backend runs and both apps type against.
+- **melda-teacher / melda-student** are thin clients: fetch a server-computed model, render it; POST an action, refetch.
 
-| Concern      | Choice                                                                        | Why                                                                                                                                          |
-| ------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime      | **Expo SDK 54** + React Native, TypeScript                                    | Cross-platform (iOS / Android / web) from one codebase; Android is the target device (low-resource) but not a limit. Demos via Expo Go (QR). |
-| Routing      | **Expo Router** (bundled)                                                     | Platform feature, not an added abstraction. File routes = screens.                                                                           |
-| Data         | **In-memory deterministic seed** + **pure aggregation functions**             | A fixed seeded class needs no DB. See "The key simplification".                                                                              |
-| Shared state | **One Zustand store** holding the full mutable `Dataset`                      | Both surfaces write to it; insights read from it. One file, no boilerplate context.                                                          |
-| Persistence  | Full dataset as **one AsyncStorage JSON blob**, hand-rolled                   | Survives a reload / offline. Hand-rolled because zustand's `persist` uses `import.meta`, which Metro's classic-script output rejects.        |
-| AI           | **MockAIService** (default) / **ClaudeAIService** (real), one interface       | Chosen once in `ai/index.ts` by presence of an env key; UI never imports a concrete class.                                                   |
-| Charts       | **react-native-gifted-charts** (+ `react-native-svg`, `expo-linear-gradient`) | Expo Go compatible; installed-dep-solves-it.                                                                                                 |
-| UI           | **`tokens.ts` + a small component kit** (`components.tsx`)                    | Minimal footprint + pitch polish. No UI-kit dependency.                                                                                      |
+The one load-bearing consequence: this app **never computes an insight and never holds a secret**. Every trust boundary — grading, the answer key, the AI key, tenancy — is server-side.
 
-**Deferred dependencies (add only when the trigger fires):** `expo-sqlite`, `drizzle-orm`, an auth library.
+## Stack (client)
 
-## The key simplification: in-memory seed, not SQLite
+| Concern       | Choice                                                                | Why                                                                                               |
+| ------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Runtime       | **Expo SDK 54** + React Native, TypeScript                            | One codebase (iOS / Android / web); Android is the target. Demos via Expo Go (QR).                |
+| Routing       | **Expo Router**                                                       | File routes = screens; a platform feature, not an added abstraction.                              |
+| Server access | **`src/api/client.ts`** — a `fetch` wrapper                           | One door: attaches the JWT, throws `ApiError` on non-2xx, fires the 401 handler.                  |
+| Data fetching | **`src/api/useApi.ts`**                                               | Small hook; each screen declares what it reads.                                                   |
+| State         | **One Zustand store, session-only** (`token`, `user`, `currentClass`) | The store used to hold the whole `Dataset`; now it just proves who you are and which class.       |
+| Persistence   | **JWT (+ user/class) as one AsyncStorage blob**                       | A reload keeps you signed in; a bumped storage key boots signed-out (the token is re-obtainable). |
+| Charts        | **react-native-gifted-charts** (+ `react-native-svg`)                 | Expo Go compatible.                                                                               |
+| UI            | **`tokens.ts` + a small component kit**                               | Minimal footprint, no UI-kit dependency.                                                          |
 
-The app renders a **fixed, seeded class** and computes insights from it. The valuable, testable logic is the **aggregation** (counts, %, misconception mapping) — identical whether it runs over a TS array or SQL rows. A seeded dataset in memory needs no schema, no repository layer, no migrations. That deletes an entire layer.
+Types are consumed from `melda-shared` as a **type-only import** (`import type`), so babel erases them and Metro never bundles the package.
 
-Student writes are real (submissions and signals are appended to the same in-memory dataset and persisted), but they still land in the JSON blob, not a database. **Upgrade path** — move the dataset into `expo-sqlite` and swap the pure selectors for SQL `GROUP BY` when (a) data must scale past a demo class, or (b) multiple devices must share one class. The AI boundary and the pure insight functions are designed so this swap touches only the data source, not the UI.
+## Data flow
 
-## Project structure
+A screen calls `api.something()` → the backend reassembles the `Dataset` for that class (`loadDataset`) and runs the **same pure function** the app used to call in-process (`classSummary`, `conceptDetail`, `assignmentProgress`, …) → returns JSON. The number on screen was computed by code that `melda-shared`'s checks pin — not by this app, and not by the model.
 
-```
-MELDA/
-  app/                              # Expo Router routes = screens
-    _layout.tsx                     # Root: SafeArea + status bar
-    index.tsx                       # Role picker: Teacher / Student
-    (teacher)/
-      _layout.tsx                   # Bottom tabs: Insights / Lessons / Reviews
-      insights/
-        index.tsx                   # Class dashboard (aggregated)
-        concept/[conceptId].tsx     # Concept drill-down
-        student/[studentId].tsx     # Student detail
-      lessons/
-        index.tsx                   # Lesson library
-        new.tsx                     # AI-assisted lesson authoring
-        [lessonId]/index.tsx        # Lesson detail
-        [lessonId]/adapt.tsx        # Section adaptation
-      reviews/
-        index.tsx                   # Review library + hand-in status
-        new.tsx                     # AI-assisted review authoring
-        [assignmentId].tsx          # Live hand-in tracker
-    student/
-      _layout.tsx
-      index.tsx                     # Pick identity + home (lessons + reviews)
-      lesson/[lessonId].tsx         # Reader + "I don't get this" (inline adaptation)
-      quiz/[assignmentId].tsx       # Take a review (graded on submit)
-  src/
-    ai/       types.ts  MockAIService.ts  ClaudeAIService.ts  index.ts (ai)  *.check.ts
-    data/     seed.ts                                          # deterministic class + signals
-    domain/   models.ts  experience.ts  insights/aggregate.ts  *.check.ts   # pure, testable
-    state/    store.ts  persist.ts  persist.check.ts           # one store + persistence seam
-    ui/       tokens.ts  components.tsx                        # Screen, Card, Button, StatTile, charts
-  assets/  docs/  app.json  package.json  tsconfig.json
-```
+Writes (create lesson / adaptation / assignment, publish, submit) POST to the backend and the screen refetches. Ids are server-generated; the client mints nothing that reaches the backend.
 
-No `db.ts`, no `schema.ts`, no `repositories/` — deferred until the SQLite trigger fires.
+## Auth
 
-## Screens (the loop, end to end)
+Login posts `{ email, password, role: 'teacher' }` → `{ token, user }`. `signIn` stores the JWT, loads the teacher's classes, and picks the first. The client attaches `Authorization: Bearer <jwt>` to every request; a **401 anywhere signs the user out once, everywhere**. The old "pick a role / pick a name" screens are gone — the JWT subject is the identity.
 
-- **Role picker (`app/index.tsx`):** two surfaces over one brain — choose Teacher or Student. Both write the same store.
-- **Teacher — CREATE:** lesson library → AI-assisted authoring → detail → **adapt** a section (simpler / detailed / example / visual / practice / reexplain); review library → AI-assisted review authoring → **live tracker** of hand-ins and scores.
-- **Teacher — UNDERSTAND:** class dashboard (aggregated, not a notification stream) → concept drill-down (struggle % + likely misconception) → student detail (mastery per concept).
-- **Student — EXPERIENCE:** pick identity → home (published lessons + reviews) → lesson reader with **"I don't get this"** (re-casts the section inline) → take a review, graded on submit.
+## AI (the one kept abstraction)
 
-## AI service abstraction (the one kept abstraction)
-
-All UI depends on this interface; the concrete implementation is chosen once in `src/ai/index.ts`. UI never imports a concrete class.
+The four AI methods live behind one interface in the backend:
 
 ```ts
 interface AIService {
-  draftLesson(input: DraftLessonInput): Promise<LessonDraft>; // AI-assisted "new lesson"
-  draftQuiz(input: DraftQuizInput): Promise<QuizDraft>; // AI-assisted "new review"
-  adaptSection(input: AdaptSectionInput): Promise<AdaptationDraft>; // re-cast for who didn't get it
+  draftLesson(input: DraftLessonInput): Promise<LessonDraft>;
+  draftQuiz(input: DraftQuizInput): Promise<QuizDraft>;
+  adaptSection(input: AdaptSectionInput): Promise<AdaptationDraft>;
   narrateInsight(input: NarrateInsightInput): Promise<string>; // numbers in -> sentence out
 }
 ```
 
-- **MockAIService (default):** deterministic, offline output keyed on topic/mode, with a small artificial delay so it feels live. Reproducible demos, no key required.
-- **ClaudeAIService (real):** same interface, calls the Anthropic Messages API directly over `fetch` (no SDK dependency). Selected when `EXPO_PUBLIC_ANTHROPIC_API_KEY` is set. **Falls back to the mock on any failure** — no key, no network, or a malformed reply — so the app never breaks mid-demo.
-- **Compute vs narrate split:** aggregation is **real** deterministic logic; only the natural-language framing is "AI". `narrateInsight` receives already-computed numbers, so the dashboard's numbers are trustworthy whether the AI is mock or real. MELDA never asks the model for a figure.
-- **Client-key caveat:** an `EXPO_PUBLIC_` key is inlined into the client bundle and visible to anyone with the app — fine for a local demo, but production must route these calls through a server that holds the key.
+This app calls the first three through `/ai/*` (teacher-only). `narrateInsight` is **not** a public route — it runs inside the insights read, after aggregation, so numbers and their narration return together and the model never sees a figure it could change. Mock by default, real Claude when the backend has a key, mock fallback on any failure. The old **client-key caveat is retired: there is no client key.**
 
-## Data model (TypeScript types over the seed, not SQL tables)
+## Project structure
 
-Single source of truth: `src/domain/models.ts`.
+```
+app/                                # Expo Router routes = screens
+  _layout.tsx                       # Root: session hydrate + splash gate
+  index.tsx                         # Teacher login (was the role picker)
+  (teacher)/
+    _layout.tsx                     # Bottom tabs: Insights / Lessons / Reviews
+    insights/index.tsx              # Class dashboard (server-computed)
+    insights/concept/[conceptId].tsx
+    insights/student/[studentId].tsx
+    lessons/index.tsx  new.tsx  [lessonId]/index.tsx  [lessonId]/adapt.tsx
+    reviews/index.tsx  new.tsx  [assignmentId].tsx     # authoring + live tracker
+src/
+  api/    client.ts  useApi.ts  client.check.ts        # the one door to the backend
+  state/  store.ts                                     # session-only Zustand store
+  ui/     tokens.ts  components.tsx                     # design tokens + component kit
+```
 
-**Entities:** `ClassRoom` · `Student` · `Concept`(order) · `Lesson`(sections, status, adaptations) · `LessonSection`(kind, conceptId) · `Adaptation`(mode) · `Question`(conceptId, choices, correctIndex) · `Assignment`(questions, dueAt) · `Submission`(answers) · `Answer`(conceptId, correct) · `LearningSignal`(studentId, type, conceptId?, value?) — all gathered into one `Dataset` container.
+No `domain/`, `data/seed.ts`, `ai/`, or `state/persist.ts` here anymore — the model, the seed, the AI implementations, and data persistence all moved server-side.
 
-**`LearningSignal.type` taxonomy:** `QUESTION_STRUGGLE` · `CONCEPT_REVISIT` · `REQUEST_SIMPLER` · `REQUEST_ALTERNATIVE_EXPLANATION` · `ACTIVITY_PERFORMANCE` · `ASSIGNMENT_PERFORMANCE` · `INCORRECT_PATTERN` · `TIME_ON_SECTION` · `RESOURCE_ENGAGEMENT` · `SUBMISSION_TIMESTAMP`.
+## What lives elsewhere
 
-**Aggregation (pure functions):**
+- **Data model, aggregation, experience logic, REST DTOs** → `melda-shared`.
+- **DB schema, `loadDataset`, auth, endpoints, AI implementations, seed** → `melda-backend`.
+- **Student screens** → `melda-student`.
 
-- `src/domain/insights/aggregate.ts` — class/concept struggle %, most common wrong option → likely misconception, concept difficulty ranking, per-student mastery.
-- `src/domain/experience.ts` — grades a student's answers into a `Submission` + the signals it emits, and computes live assignment progress for the tracker. Re-submissions replace the prior attempt (`upsertSubmission`).
+## Ceilings / upgrade paths
 
-## Store and persistence
-
-One Zustand store (`src/state/store.ts`) holds a mutable clone of the seeded `Dataset`. The teacher's CREATE flow grows `lessons`/`assignments`; the student's EXPERIENCE flow appends `submissions`/`signals`. Because UNDERSTAND is pure functions over `data`, the dashboards and tracker recompute live as students act — nothing to sync.
-
-`src/state/persist.ts` is a thin seam: hydrate from AsyncStorage on load, then write the dataset on every change. It's kept separate from the store so a runnable check can exercise it with a fake key-value store. `currentStudentId` is session-only (not persisted) so a reload returns to the role picker. `STORAGE_KEY` carries a version suffix — bump it on any dataset shape change and the store reseeds cleanly. `resetDemo` restores the seed.
-
-## Seed / simulation layer
-
-`src/data/seed.ts` is a **deterministic** class authored once (fixed values / seeded PRNG — no live randomness) so the dashboard always tells the same story: **25 students**, one subject (**Grade 10 Chemistry**) across **7 concepts**, lessons, a seeded review with submissions, and a coherent `LearningSignal` set consistent with each student's ability and each concept's difficulty — producing the headline _"32% struggled with Ionic Bonding"_. It's a plain module import: no DB, no first-run seeding step. Live student submissions then build on top of it.
-
-## Deliberately NOT building yet (YAGNI + upgrade path)
-
-- **SQLite / ORM / repositories** → in-memory seed + AsyncStorage blob; upgrade when data must scale past a demo class or sync across devices.
-- **Auth / multi-class / teacher accounts** → single seeded class; add when more than one class or device is real.
-- **Server-side AI proxy** → client-side key for the demo; add before any production deployment (see the client-key caveat).
+- `melda-shared` is a **git dependency pinned to a tag** — a shared change needs a tag bump there and a ref bump in the consumers.
+- The JWT is persisted via **AsyncStorage**; `expo-secure-store` is the upgrade for at-rest token protection.
+- **One class per session** (`currentClass` = the first). A class picker is the upgrade when a teacher has several.
 
 ## Verification
 
-- **Run:** `pnpm start`, then open in **Expo Go**: scan the QR from a physical Android or iPhone (works from Windows), or use `a` (emulator) / `w` (web). Prove offline-first by staying keyless (mock AI) and enabling airplane mode after load — in-memory + persisted data, no network.
-- **Runnable checks (assert-based, no framework):** `pnpm check` runs five — insight aggregation, the AI mock, the real Claude service (network stubbed, incl. the fallback path), the persistence seam, and the student-loop grading. Plus `pnpm typecheck` (`tsc --noEmit`).
-- **Demo narrative (the loop):** role picker → teacher sees _"32% struggled with ionic bonding"_ → drills in and adapts a section → authors a review → switches to a student who reads a lesson and takes the review → back on the teacher side the tracker and dashboards have moved. The loop closes.
+- `pnpm typecheck` (`tsc --noEmit`) + `pnpm check` (the API client contract).
+- **End-to-end:** backend up → sign in here (see the headline) → the student app submits a review → refetch here, the numbers moved. The loop closes across processes, not in shared memory.
