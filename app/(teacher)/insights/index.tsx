@@ -20,6 +20,7 @@ import {
   Divider,
   EmptyState,
   ErrorState,
+  Icon,
   Loading,
   Row,
   Screen,
@@ -67,7 +68,7 @@ export default function InsightsDashboard() {
   const resetControl = __DEV__ ? (
     <Button
       title={armed ? 'Confirm reset' : 'Reset demo'}
-      icon="↺"
+      icon="refresh"
       variant="ghost"
       size="sm"
       loading={resetting}
@@ -115,11 +116,11 @@ export default function InsightsDashboard() {
         <EmptyState
           title="No submissions yet"
           body="Set a review for the class. As students hand in, MELDA shows you here where they are struggling."
-          icon="📭"
+          icon="inbox"
         />
         <Button
           title="Create a review"
-          icon="+"
+          icon="plus"
           onPress={() => router.push('/(teacher)/reviews/new')}
         />
       </Screen>
@@ -153,7 +154,7 @@ export default function InsightsDashboard() {
 
       <Card>
         <Row gap={sp.sm}>
-          <Txt>🤖</Txt>
+          <Icon name="sparkle" size={18} color={color.accentInk} />
           <Txt variant="h3">What MELDA sees</Txt>
         </Row>
         <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.sm }}>
@@ -202,7 +203,7 @@ export default function InsightsDashboard() {
           <EmptyState
             title="Nothing below the pass line"
             body="Every assessed concept is on track."
-            icon="✅"
+            icon="success"
           />
         )}
       </View>
@@ -266,7 +267,7 @@ export default function InsightsDashboard() {
           <EmptyState
             title="No signals yet"
             body="Signals appear as students read lessons and submit reviews."
-            icon="📡"
+            icon="signal"
           />
         )}
       </View>

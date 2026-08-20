@@ -93,7 +93,7 @@ export default function NewReview() {
 
       <Button
         title={draft ? 'Redraft' : 'Draft with MELDA'}
-        icon="✨"
+        icon="sparkle"
         loading={loading}
         disabled={!topic.trim()}
         onPress={generate}
@@ -145,7 +145,7 @@ export default function NewReview() {
             </Card>
           ))}
 
-          <Button title="Set for the class" icon="✓" loading={saving} onPress={save} />
+          <Button title="Set for the class" icon="check" loading={saving} onPress={save} />
         </>
       ) : null}
     </Screen>

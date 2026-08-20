@@ -15,6 +15,7 @@ import {
   Button,
   Card,
   ErrorState,
+  Icon,
   Loading,
   Row,
   Screen,
@@ -88,7 +89,7 @@ export default function LessonDetail() {
               <Badge label={KIND_LABEL[sec.kind]} tone="accent" />
               <Button
                 title="Adapt"
-                icon="✨"
+                icon="sparkle"
                 variant="ghost"
                 size="sm"
                 onPress={() =>
@@ -116,9 +117,12 @@ export default function LessonDetail() {
                   gap: 4,
                 }}
               >
-                <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
-                  ✨ MELDA - {adaptationLabel[a.mode]}
-                </Txt>
+                <Row gap={sp.xs}>
+                  <Icon name="sparkle" size={12} color={color.accentInk} />
+                  <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
+                    MELDA - {adaptationLabel[a.mode]}
+                  </Txt>
+                </Row>
                 <Txt variant="small" c={color.inkSecondary}>
                   {a.body}
                 </Txt>
@@ -129,7 +133,7 @@ export default function LessonDetail() {
       })}
 
       {!published ? (
-        <Button title="Publish lesson" icon="✓" loading={publishing} onPress={publish} />
+        <Button title="Publish lesson" icon="check" loading={publishing} onPress={publish} />
       ) : null}
     </Screen>
   );

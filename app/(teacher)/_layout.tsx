@@ -1,12 +1,12 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Icon, type IconName } from '../../src/ui/components';
 import { color, sp } from '../../src/ui/tokens';
 import { useSession } from '../../src/state/store';
 
-const icon =
-  (glyph: string) =>
-  ({ focused }: { focused: boolean }) => (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>{glyph}</Text>
+const tabIcon =
+  (name: IconName) =>
+  ({ color: c, size }: { color: string; size: number }) => (
+    <Icon name={name} size={size} color={c} />
   );
 
 export default function TeacherTabs() {
@@ -31,9 +31,9 @@ export default function TeacherTabs() {
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
     >
-      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: icon('📊') }} />
-      <Tabs.Screen name="lessons" options={{ title: 'Lessons', tabBarIcon: icon('📚') }} />
-      <Tabs.Screen name="reviews" options={{ title: 'Reviews', tabBarIcon: icon('📝') }} />
+      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: tabIcon('chart') }} />
+      <Tabs.Screen name="lessons" options={{ title: 'Lessons', tabBarIcon: tabIcon('book') }} />
+      <Tabs.Screen name="reviews" options={{ title: 'Reviews', tabBarIcon: tabIcon('reviews') }} />
     </Tabs>
   );
 }

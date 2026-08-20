@@ -13,6 +13,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  Icon,
   Loading,
   Row,
   Screen,
@@ -26,7 +27,12 @@ export default function LessonsLibrary() {
   const { data: lessons, loading, error, reload } = useApi(() => api.lessons(classId));
 
   const right = (
-    <Button title="New" icon="+" size="sm" onPress={() => router.push('/(teacher)/lessons/new')} />
+    <Button
+      title="New"
+      icon="plus"
+      size="sm"
+      onPress={() => router.push('/(teacher)/lessons/new')}
+    />
   );
 
   return (
@@ -41,7 +47,7 @@ export default function LessonsLibrary() {
         <EmptyState
           title="No lessons yet"
           body="Draft one with MELDA to start your unit."
-          icon="📚"
+          icon="book"
         />
       ) : null}
 
@@ -54,9 +60,12 @@ export default function LessonsLibrary() {
               dot
             />
             {l.adaptations.length ? (
-              <Txt variant="tiny" c={color.accentInk}>
-                ✨ {l.adaptations.length} adaptation{l.adaptations.length > 1 ? 's' : ''}
-              </Txt>
+              <Row gap={sp.xs}>
+                <Icon name="sparkle" size={12} color={color.accentInk} />
+                <Txt variant="tiny" c={color.accentInk}>
+                  {l.adaptations.length} adaptation{l.adaptations.length > 1 ? 's' : ''}
+                </Txt>
+              </Row>
             ) : null}
           </Row>
           <Txt variant="h3" style={{ marginTop: sp.sm }}>

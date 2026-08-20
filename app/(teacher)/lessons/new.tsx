@@ -91,7 +91,7 @@ export default function NewLesson() {
 
       <Button
         title={draft ? 'Redraft' : 'Draft with MELDA'}
-        icon="✨"
+        icon="sparkle"
         loading={loading}
         disabled={!topic.trim()}
         onPress={generate}
@@ -129,7 +129,7 @@ export default function NewLesson() {
             </Card>
           ))}
 
-          <Button title="Save to lessons" icon="✓" loading={saving} onPress={save} />
+          <Button title="Save to lessons" icon="check" loading={saving} onPress={save} />
         </>
       ) : null}
     </Screen>

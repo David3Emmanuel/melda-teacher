@@ -17,6 +17,7 @@ import {
   Button,
   Card,
   ErrorState,
+  Icon,
   Loading,
   Row,
   Screen,
@@ -158,7 +159,7 @@ export default function AdaptSection() {
 
       <Button
         title={draft ? 'Regenerate' : 'Generate with MELDA'}
-        icon="✨"
+        icon="sparkle"
         loading={generating}
         onPress={generate}
       />
@@ -172,16 +173,19 @@ export default function AdaptSection() {
       {draft ? (
         <>
           <Card style={{ backgroundColor: color.accentSoft, borderColor: color.accentSoft }}>
-            <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
-              ✨ MELDA - {adaptationLabel[mode]}
-            </Txt>
+            <Row gap={sp.xs}>
+              <Icon name="sparkle" size={12} color={color.accentInk} />
+              <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
+                MELDA - {adaptationLabel[mode]}
+              </Txt>
+            </Row>
             <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.xs }}>
               {draft}
             </Txt>
           </Card>
           <Button
             title="Save to lesson"
-            icon="✓"
+            icon="check"
             variant="secondary"
             loading={saving}
             onPress={save}

@@ -26,7 +26,12 @@ export default function ReviewsList() {
   const { data: reviews, loading, error, reload } = useApi(() => api.assignments(classId));
 
   const right = (
-    <Button title="New" icon="+" size="sm" onPress={() => router.push('/(teacher)/reviews/new')} />
+    <Button
+      title="New"
+      icon="plus"
+      size="sm"
+      onPress={() => router.push('/(teacher)/reviews/new')}
+    />
   );
 
   return (
@@ -41,7 +46,7 @@ export default function ReviewsList() {
         <EmptyState
           title="No reviews yet"
           body="Draft one with MELDA to start tracking."
-          icon="📝"
+          icon="reviews"
         />
       ) : null}
 

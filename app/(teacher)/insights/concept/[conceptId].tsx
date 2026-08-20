@@ -113,7 +113,7 @@ export default function ConceptScreen() {
       {lesson ? (
         <Button
           title="Open the lesson"
-          icon="📚"
+          icon="book"
           variant="secondary"
           onPress={() => router.push(`/(teacher)/lessons/${lesson.id}`)}
         />
