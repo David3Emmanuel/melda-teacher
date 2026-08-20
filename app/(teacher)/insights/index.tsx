@@ -6,7 +6,7 @@
 // screen only renders what the server aggregated.
 
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../../src/api/client';
 import { useApi } from '../../../src/api/useApi';
@@ -22,6 +22,7 @@ import {
   ErrorState,
   Icon,
   Loading,
+  type PressState,
   Row,
   Screen,
   SectionTitle,
@@ -44,6 +45,13 @@ export default function InsightsDashboard() {
   const currentClass = useSession((s) => s.currentClass);
   const classId = currentClass?.id ?? '';
   const { data, loading, error, reload } = useApi(() => api.insights(classId));
+
+  // The teacher uses this at a desk too. Past a tablet's width, drop the two tall
+  // triage lists into side-by-side columns so the whole picture fits with less
+  // scrolling. Deliberately a single breakpoint, no tablet/desktop tiers - the
+  // upgrade path is a third column only if one is ever needed.
+  const { width } = useWindowDimensions();
+  const twoCol = width >= 900;
 
   // Two-tap confirm for the demo reset. This re-seeds the whole class, so it is
   // gated to dev builds (__DEV__) - it must never render in a classroom where one
@@ -128,7 +136,12 @@ export default function InsightsDashboard() {
   }
 
   return (
-    <Screen title={summary.className} subtitle={currentClass?.subject} right={resetControl}>
+    <Screen
+      title={summary.className}
+      subtitle={currentClass?.subject}
+      right={resetControl}
+      maxWidth={1080}
+    >
       <ClassSwitcher />
       {top ? (
         <Card onPress={() => router.push(`/(teacher)/insights/concept/${top.conceptId}`)}>
@@ -178,70 +191,74 @@ export default function InsightsDashboard() {
         />
       </Row>
 
-      <View>
-        <SectionTitle
-          title="Where students are struggling"
-          caption="Share of the class below the pass line, by concept"
-        />
-        {concepts.length ? (
-          <Card>
-            {concepts.map((i, idx) => (
-              <View key={i.conceptId}>
-                {idx > 0 ? <Divider /> : null}
-                <BarRow
-                  label={i.name}
-                  value={i.strugglePct}
-                  display={`${i.strugglePct}%`}
-                  fill={toneFill(struggleTone(i.strugglePct).tone)}
-                  sub={`${i.strugglers} of ${i.attempted} struggling - avg mastery ${i.avgMasteryPct}%`}
-                  onPress={() => router.push(`/(teacher)/insights/concept/${i.conceptId}`)}
-                />
-              </View>
-            ))}
-          </Card>
-        ) : (
-          <EmptyState
-            title="Nothing below the pass line"
-            body="Every assessed concept is on track."
-            icon="success"
-          />
-        )}
-      </View>
-
-      {needs.length ? (
-        <View>
+      <View
+        style={{ flexDirection: twoCol ? 'row' : 'column', gap: sp.lg, alignItems: 'flex-start' }}
+      >
+        <View style={twoCol ? { flex: 1 } : undefined}>
           <SectionTitle
-            title="Students to check in with"
-            caption="Most concepts below the pass line"
+            title="Where students are struggling"
+            caption="Share of the class below the pass line, by concept"
           />
-          <Card>
-            {needs.map((n, idx) => (
-              <View key={n.student.id}>
-                {idx > 0 ? <Divider /> : null}
-                <Row style={{ justifyContent: 'space-between', paddingVertical: sp.sm }}>
-                  <Row gap={sp.md} style={{ flex: 1 }}>
-                    <Avatar initials={n.student.initials} tone="struggle" />
-                    <View style={{ flex: 1 }}>
-                      <Txt w={weight.semibold} numberOfLines={1}>
-                        {n.student.name}
-                      </Txt>
-                      <Txt variant="tiny" c={color.inkMuted} numberOfLines={1}>
-                        {n.strugglingConceptNames.join(', ')}
-                      </Txt>
-                    </View>
-                  </Row>
-                  <Button
-                    title="View"
-                    variant="secondary"
-                    size="sm"
-                    onPress={() => router.push(`/(teacher)/insights/student/${n.student.id}`)}
+          {concepts.length ? (
+            <Card>
+              {concepts.map((i, idx) => (
+                <View key={i.conceptId}>
+                  {idx > 0 ? <Divider /> : null}
+                  <BarRow
+                    label={i.name}
+                    value={i.strugglePct}
+                    display={`${i.strugglePct}%`}
+                    fill={toneFill(struggleTone(i.strugglePct).tone)}
+                    sub={`${i.strugglers} of ${i.attempted} struggling - avg mastery ${i.avgMasteryPct}%`}
+                    onPress={() => router.push(`/(teacher)/insights/concept/${i.conceptId}`)}
                   />
-                </Row>
-              </View>
-            ))}
-          </Card>
+                </View>
+              ))}
+            </Card>
+          ) : (
+            <EmptyState
+              title="Nothing below the pass line"
+              body="Every assessed concept is on track."
+              icon="success"
+            />
+          )}
         </View>
-      ) : null}
+
+        {needs.length ? (
+          <View style={twoCol ? { flex: 1 } : undefined}>
+            <SectionTitle
+              title="Students to check in with"
+              caption="Most concepts below the pass line"
+            />
+            <Card>
+              {needs.map((n, idx) => (
+                <View key={n.student.id}>
+                  {idx > 0 ? <Divider /> : null}
+                  <Row style={{ justifyContent: 'space-between', paddingVertical: sp.sm }}>
+                    <Row gap={sp.md} style={{ flex: 1 }}>
+                      <Avatar initials={n.student.initials} tone="struggle" />
+                      <View style={{ flex: 1 }}>
+                        <Txt w={weight.semibold} numberOfLines={1}>
+                          {n.student.name}
+                        </Txt>
+                        <Txt variant="tiny" c={color.inkMuted} numberOfLines={1}>
+                          {n.strugglingConceptNames.join(', ')}
+                        </Txt>
+                      </View>
+                    </Row>
+                    <Button
+                      title="View"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => router.push(`/(teacher)/insights/student/${n.student.id}`)}
+                    />
+                  </Row>
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
+      </View>
 
       <View>
         <SectionTitle
@@ -296,14 +313,17 @@ function ClassSwitcher() {
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={`View ${c.name}`}
-            style={{
-              paddingVertical: sp.xs,
-              paddingHorizontal: sp.md,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              borderColor: active ? color.accent : color.border,
-              backgroundColor: active ? color.accentSoft : color.card,
-            }}
+            style={({ hovered, focused }: PressState) => [
+              {
+                paddingVertical: sp.xs,
+                paddingHorizontal: sp.md,
+                borderRadius: radius.pill,
+                borderWidth: 1,
+                borderColor: active || hovered ? color.accent : color.border,
+                backgroundColor: active ? color.accentSoft : color.card,
+              },
+              focused ? { boxShadow: `0 0 0 2px ${color.accent}` } : null,
+            ]}
           >
             <Txt
               variant="small"
