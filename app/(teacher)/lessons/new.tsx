@@ -1,17 +1,26 @@
 // AI-assisted "new lesson": the teacher types a topic, MELDA drafts a full lesson
-// (POST /ai/draft-lesson), and saving posts it to the class (POST
-// /classes/:id/lessons), where the backend resolves the topic to a real concept
-// and stores the lesson as a draft. The draft is the AI's job; everything after
-// saving is real, server-owned state.
+// (POST /ai/draft-lesson), the teacher edits any field, and saving posts it to the
+// class (POST /classes/:id/lessons), where the backend resolves the topic to a
+// real concept and stores the lesson as a draft. The draft is the AI's first pass;
+// everything after saving is real, server-owned state.
 
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { LessonDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
 import { useSession } from '../../../src/state/store';
-import { Badge, Button, Card, Row, Screen, SectionTitle, Txt } from '../../../src/ui/components';
-import { color, radius, sp, weight } from '../../../src/ui/tokens';
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Row,
+  Screen,
+  SectionTitle,
+  Txt,
+} from '../../../src/ui/components';
+import { color, sp } from '../../../src/ui/tokens';
 
 const KIND_LABEL: Record<string, string> = {
   explanation: 'Explain',
@@ -24,10 +33,22 @@ export default function NewLesson() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
   const [topic, setTopic] = useState('');
+  // Grade level shapes the draft's reading level. The class record carries no
+  // grade, so this is an editable field defaulting to the common case rather than
+  // a value silently baked into the request.
+  const [gradeLevel, setGradeLevel] = useState('Grade 10');
   const [draft, setDraft] = useState<LessonDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Edit the draft in place before saving - the AI's text is a starting point,
+  // not a contract. Each setter patches one slice of the draft state.
+  const setField = (patch: Partial<LessonDraft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
+  const setSection = (i: number, patch: Partial<LessonDraft['sections'][number]>) =>
+    setDraft((d) =>
+      d ? { ...d, sections: d.sections.map((s, idx) => (idx === i ? { ...s, ...patch } : s)) } : d,
+    );
 
   const generate = async () => {
     const t = topic.trim();
@@ -35,7 +56,7 @@ export default function NewLesson() {
     setLoading(true);
     setError(null);
     try {
-      setDraft(await api.draftLesson({ topic: t, gradeLevel: 'Grade 10' }));
+      setDraft(await api.draftLesson({ topic: t, gradeLevel: gradeLevel.trim() || undefined }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not draft the lesson.');
     } finally {
@@ -66,22 +87,19 @@ export default function NewLesson() {
       <Stack.Screen options={{ title: 'New lesson' }} />
 
       <Card>
-        <Txt
-          variant="tiny"
-          c={color.inkMuted}
-          w={weight.semibold}
-          style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
-        >
-          Topic
-        </Txt>
-        <TextInput
+        <Input
+          label="Topic"
           value={topic}
           onChangeText={setTopic}
           placeholder="e.g. Le Chatelier's Principle"
-          placeholderTextColor={color.inkMuted}
-          style={styles.input}
-          returnKeyType="done"
           onSubmitEditing={generate}
+        />
+        <Input
+          label="Grade level"
+          value={gradeLevel}
+          onChangeText={setGradeLevel}
+          placeholder="e.g. Grade 10"
+          style={{ marginTop: sp.md }}
         />
         <Txt variant="tiny" c={color.inkMuted} style={{ marginTop: sp.sm }}>
           MELDA drafts an explanation, a worked example, an activity and a quick check. You edit
@@ -106,12 +124,20 @@ export default function NewLesson() {
       {draft ? (
         <>
           <View>
-            <SectionTitle title="Draft" caption="Review and save to your library" />
+            <SectionTitle title="Draft" caption="Edit any field, then save to your library" />
             <Card>
-              <Txt variant="h3">{draft.title}</Txt>
-              <Txt variant="small" c={color.inkMuted} style={{ marginTop: sp.xs }}>
-                {draft.summary}
-              </Txt>
+              <Input
+                label="Title"
+                value={draft.title}
+                onChangeText={(t) => setField({ title: t })}
+              />
+              <Input
+                label="Summary"
+                value={draft.summary}
+                onChangeText={(t) => setField({ summary: t })}
+                multiline
+                style={{ marginTop: sp.md }}
+              />
             </Card>
           </View>
 
@@ -120,12 +146,18 @@ export default function NewLesson() {
               <Row>
                 <Badge label={KIND_LABEL[s.kind] ?? s.kind} tone="accent" />
               </Row>
-              <Txt variant="h3" style={{ marginTop: sp.xs }}>
-                {s.title}
-              </Txt>
-              <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.xs }}>
-                {s.body}
-              </Txt>
+              <Input
+                label="Section title"
+                value={s.title}
+                onChangeText={(t) => setSection(i, { title: t })}
+                style={{ marginTop: sp.sm }}
+              />
+              <Input
+                value={s.body}
+                onChangeText={(t) => setSection(i, { body: t })}
+                multiline
+                style={{ marginTop: sp.sm }}
+              />
             </Card>
           ))}
 
@@ -135,17 +167,3 @@ export default function NewLesson() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  input: {
-    marginTop: sp.xs,
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: color.border,
-    borderRadius: radius.md,
-    paddingHorizontal: sp.md,
-    fontSize: 15,
-    color: color.ink,
-    backgroundColor: color.appBg,
-  },
-});

@@ -3,7 +3,7 @@
 // what this pins: the day boundaries, the closed flag, the warn tone, and the
 // NaN guard. No React, no framework. `pnpm check:ui` (tsx).
 
-import { dueLabel } from './tokens';
+import { clampInt, dueLabel } from './tokens';
 
 let passed = 0;
 function ok(cond: boolean, msg: string) {
@@ -52,6 +52,14 @@ function main() {
 
   eq(dueLabel('not-a-date', NOW).text, '', 'an unparseable date yields no label');
   eq(dueLabel('not-a-date', NOW).closed, false, 'an unparseable date is not "closed"');
+
+  console.log('clampInt');
+  eq(clampInt('5', 1, 10, 3), 5, 'an in-range value passes through');
+  eq(clampInt('0', 1, 10, 3), 1, 'below the floor clamps up to min');
+  eq(clampInt('99', 1, 10, 3), 10, 'above the ceiling clamps down to max');
+  eq(clampInt('', 1, 10, 3), 3, 'empty text falls back');
+  eq(clampInt('abc', 1, 10, 3), 3, 'non-numeric text falls back');
+  eq(clampInt('7.9', 1, 10, 3), 7, 'a decimal is floored to its integer part');
 
   console.log(`\nAll ${passed} assertions passed.`);
 }

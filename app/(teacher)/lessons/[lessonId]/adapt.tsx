@@ -18,6 +18,7 @@ import {
   Card,
   ErrorState,
   Icon,
+  Input,
   Loading,
   Row,
   Screen,
@@ -179,9 +180,7 @@ export default function AdaptSection() {
                 MELDA - {adaptationLabel[mode]}
               </Txt>
             </Row>
-            <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.xs }}>
-              {draft}
-            </Txt>
+            <Input value={draft} onChangeText={setDraft} multiline style={{ marginTop: sp.xs }} />
           </Card>
           <Button
             title="Save to lesson"
