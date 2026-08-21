@@ -28,7 +28,7 @@ import {
   SectionTitle,
   StatTile,
   Txt,
-} from '../../../src/ui/components';
+} from 'melda-shared/ui/components';
 import {
   color,
   masteryTone,
@@ -38,7 +38,7 @@ import {
   struggleTone,
   toneFill,
   weight,
-} from '../../../src/ui/tokens';
+} from 'melda-shared/ui/tokens';
 
 export default function InsightsDashboard() {
   const router = useRouter();

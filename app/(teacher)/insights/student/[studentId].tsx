@@ -21,7 +21,7 @@ import {
   Screen,
   SectionTitle,
   Txt,
-} from '../../../../src/ui/components';
+} from 'melda-shared/ui/components';
 import {
   color,
   masteryTone,
@@ -30,7 +30,7 @@ import {
   toneFill,
   toneStyle,
   weight,
-} from '../../../../src/ui/tokens';
+} from 'melda-shared/ui/tokens';
 
 export default function StudentScreen() {
   const { studentId } = useLocalSearchParams<{ studentId: string }>();

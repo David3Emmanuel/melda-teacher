@@ -21,8 +21,8 @@ import {
   Screen,
   SectionTitle,
   Txt,
-} from '../../../src/ui/components';
-import { clampInt, color, sp } from '../../../src/ui/tokens';
+} from 'melda-shared/ui/components';
+import { clampInt, color, sp } from 'melda-shared/ui/tokens';
 
 export default function NewReview() {
   const router = useRouter();

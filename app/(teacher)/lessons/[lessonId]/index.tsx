@@ -20,8 +20,8 @@ import {
   Row,
   Screen,
   Txt,
-} from '../../../../src/ui/components';
-import { adaptationLabel, color, radius, sp, weight } from '../../../../src/ui/tokens';
+} from 'melda-shared/ui/components';
+import { adaptationLabel, color, radius, sp, weight } from 'melda-shared/ui/tokens';
 
 const KIND_LABEL: Record<SectionKind, string> = {
   explanation: 'Explain',

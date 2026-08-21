@@ -23,7 +23,7 @@ import {
   SectionTitle,
   StatTile,
   Txt,
-} from '../../../../src/ui/components';
+} from 'melda-shared/ui/components';
 import {
   color,
   masteryTone,
@@ -32,7 +32,7 @@ import {
   struggleTone,
   toneStyle,
   weight,
-} from '../../../../src/ui/tokens';
+} from 'melda-shared/ui/tokens';
 
 export default function ConceptScreen() {
   const { conceptId } = useLocalSearchParams<{ conceptId: string }>();

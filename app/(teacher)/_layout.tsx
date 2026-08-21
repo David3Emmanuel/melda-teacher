@@ -1,6 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Icon, type IconName } from '../../src/ui/components';
-import { color, sp } from '../../src/ui/tokens';
+import { Icon, type IconName } from 'melda-shared/ui/components';
+import { color, sp } from 'melda-shared/ui/tokens';
 import { useSession } from '../../src/state/store';
 
 const tabIcon =

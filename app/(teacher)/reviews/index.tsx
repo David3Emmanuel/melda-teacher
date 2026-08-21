@@ -17,8 +17,8 @@ import {
   Row,
   Screen,
   Txt,
-} from '../../../src/ui/components';
-import { color, dueLabel, sp, toneStyle, weight } from '../../../src/ui/tokens';
+} from 'melda-shared/ui/components';
+import { color, dueLabel, sp, toneStyle, weight } from 'melda-shared/ui/tokens';
 
 export default function ReviewsList() {
   const router = useRouter();

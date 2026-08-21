@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { color, weight } from '../../../src/ui/tokens';
+import { color, weight } from 'melda-shared/ui/tokens';
 
 export default function ReviewsStack() {
   return (

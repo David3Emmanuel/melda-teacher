@@ -18,8 +18,8 @@ import {
   Screen,
   StatTile,
   Txt,
-} from '../../../src/ui/components';
-import { color, dueLabel, masteryTone, sp, toneStyle, weight } from '../../../src/ui/tokens';
+} from 'melda-shared/ui/components';
+import { color, dueLabel, masteryTone, sp, toneStyle, weight } from 'melda-shared/ui/tokens';
 
 export default function ReviewTracker() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();

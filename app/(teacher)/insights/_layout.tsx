@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { color, weight } from '../../../src/ui/tokens';
+import { color, weight } from 'melda-shared/ui/tokens';
 
 // Dashboard (index) uses the app's own header; drill-downs get a native header
 // with a back chevron and set their own title.

@@ -18,8 +18,8 @@ import {
   Row,
   Screen,
   Txt,
-} from '../../../src/ui/components';
-import { color, sp } from '../../../src/ui/tokens';
+} from 'melda-shared/ui/components';
+import { color, sp } from 'melda-shared/ui/tokens';
 
 export default function LessonsLibrary() {
   const router = useRouter();
