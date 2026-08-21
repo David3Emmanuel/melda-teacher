@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { LessonDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
 import { useUnsavedGuard } from '../../../src/hooks/useUnsavedGuard';
@@ -33,7 +33,10 @@ const KIND_LABEL: Record<string, string> = {
 export default function NewLesson() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const [topic, setTopic] = useState('');
+  // Prefilled when arriving from a concept drill-down ("Create a lesson on this"),
+  // so the teacher lands on the struggling concept as the topic and can just draft.
+  const { topic: topicParam } = useLocalSearchParams<{ topic?: string }>();
+  const [topic, setTopic] = useState(topicParam ?? '');
   // Grade level shapes the draft's reading level. The class record carries no
   // grade, so this is an editable field defaulting to the common case rather than
   // a value silently baked into the request.

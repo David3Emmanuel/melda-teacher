@@ -117,7 +117,16 @@ export default function ConceptScreen() {
           variant="secondary"
           onPress={() => router.push(`/(teacher)/lessons/${lesson.id}`)}
         />
-      ) : null}
+      ) : (
+        <Button
+          title="Create a lesson on this"
+          icon="plus"
+          variant="secondary"
+          onPress={() =>
+            router.push(`/(teacher)/lessons/new?topic=${encodeURIComponent(concept.name)}`)
+          }
+        />
+      )}
 
       <View>
         <SectionTitle
