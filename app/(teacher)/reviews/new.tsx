@@ -10,6 +10,7 @@ import { Pressable, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { QuizDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
+import { useUnsavedGuard } from '../../../src/hooks/useUnsavedGuard';
 import { useSession } from '../../../src/state/store';
 import {
   Badge,
@@ -36,6 +37,10 @@ export default function NewReview() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // An edited draft that has not been set for the class is real work; warn before
+  // it is lost. Off while saving so the successful-save router.replace is allowed.
+  useUnsavedGuard(!!draft && !saving);
 
   // Edit the draft in place before setting it - the AI can misword a prompt or
   // pick the wrong key. Each setter patches one slice of the draft state.

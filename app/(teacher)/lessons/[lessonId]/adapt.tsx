@@ -11,6 +11,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { AdaptationMode } from 'melda-shared';
 import { api } from '../../../../src/api/client';
 import { useApi } from '../../../../src/api/useApi';
+import { useUnsavedGuard } from '../../../../src/hooks/useUnsavedGuard';
 import { useSession } from '../../../../src/state/store';
 import {
   Badge,
@@ -58,6 +59,10 @@ export default function AdaptSection() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+
+  // A generated-but-unsaved adaptation is real work; warn before it is lost. Off
+  // while saving so the successful-save router.back() is not itself intercepted.
+  useUnsavedGuard(!!draft && !saving);
 
   if (loading && !data) {
     return (

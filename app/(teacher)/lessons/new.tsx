@@ -9,6 +9,7 @@ import { View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { LessonDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
+import { useUnsavedGuard } from '../../../src/hooks/useUnsavedGuard';
 import { useSession } from '../../../src/state/store';
 import {
   Badge,
@@ -41,6 +42,10 @@ export default function NewLesson() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // An edited draft that has not been saved is real work; warn before it is lost.
+  // Off while saving so the successful-save router.replace is not itself blocked.
+  useUnsavedGuard(!!draft && !saving);
 
   // Edit the draft in place before saving - the AI's text is a starting point,
   // not a contract. Each setter patches one slice of the draft state.
