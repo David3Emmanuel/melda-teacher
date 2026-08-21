@@ -36,7 +36,7 @@ export default function LessonsLibrary() {
   );
 
   return (
-    <Screen title="Lessons" subtitle="Lessons you have written" right={right}>
+    <Screen title="Lessons" subtitle="Lessons you have written" right={right} onRefresh={reload}>
       {loading && !lessons ? <Loading /> : null}
 
       {error ? (

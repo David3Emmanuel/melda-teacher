@@ -71,7 +71,7 @@ export default function LessonDetail() {
   };
 
   return (
-    <Screen>
+    <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: lesson.title }} />
 
       <View style={{ gap: sp.sm }}>

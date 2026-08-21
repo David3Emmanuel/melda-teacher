@@ -118,7 +118,12 @@ export default function InsightsDashboard() {
   // "0% / Struggling" theatre and point the teacher at the next step instead.
   if (summary.submissionCount === 0) {
     return (
-      <Screen title={summary.className} subtitle={currentClass?.subject} right={resetControl}>
+      <Screen
+        title={summary.className}
+        subtitle={currentClass?.subject}
+        right={resetControl}
+        onRefresh={reload}
+      >
         <ClassSwitcher />
         <StatTile label="Students" value={String(summary.studentCount)} caption="in this class" />
         <EmptyState
@@ -141,6 +146,7 @@ export default function InsightsDashboard() {
       subtitle={currentClass?.subject}
       right={resetControl}
       maxWidth={1080}
+      onRefresh={reload}
     >
       <ClassSwitcher />
       {top ? (

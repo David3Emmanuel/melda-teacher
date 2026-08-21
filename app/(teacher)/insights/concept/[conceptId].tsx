@@ -75,7 +75,7 @@ export default function ConceptScreen() {
   const maxSignal = signalCounts[0]?.count ?? 1;
 
   return (
-    <Screen>
+    <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: concept.name }} />
 
       <Card>

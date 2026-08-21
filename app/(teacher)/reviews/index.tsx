@@ -35,7 +35,7 @@ export default function ReviewsList() {
   );
 
   return (
-    <Screen title="Reviews" subtitle="Quizzes you have set" right={right}>
+    <Screen title="Reviews" subtitle="Quizzes you have set" right={right} onRefresh={reload}>
       {loading && !reviews ? <Loading /> : null}
 
       {error ? (

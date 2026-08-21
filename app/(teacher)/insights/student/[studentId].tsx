@@ -73,7 +73,7 @@ export default function StudentScreen() {
     .sort((a, b) => b.count - a.count);
 
   return (
-    <Screen>
+    <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: student.name }} />
 
       <Card>

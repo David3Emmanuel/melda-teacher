@@ -62,7 +62,7 @@ export default function ReviewTracker() {
   const due = dueLabel(prog.assignment.dueAt);
 
   return (
-    <Screen>
+    <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: 'Live tracker' }} />
 
       <Txt variant="h2">{prog.assignment.title}</Txt>
