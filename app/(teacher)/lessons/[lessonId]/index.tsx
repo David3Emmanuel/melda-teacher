@@ -35,6 +35,10 @@ export default function LessonDetail() {
   const router = useRouter();
   const { data: lesson, loading, error, reload } = useApi(() => api.lesson(lessonId));
   const [publishing, setPublishing] = useState(false);
+  // Publishing is outward-facing - students see the lesson the moment it flips - so
+  // it takes a second, deliberate tap to confirm, mirroring the armed "Confirm
+  // reset" control on the dashboard. Leaving the screen drops the armed state.
+  const [armed, setArmed] = useState(false);
 
   if (loading && !lesson) {
     return (
@@ -61,9 +65,14 @@ export default function LessonDetail() {
   const published = lesson.status === 'published';
 
   const publish = async () => {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
     setPublishing(true);
     try {
       await api.publishLesson(lesson.id);
+      setArmed(false);
       reload();
     } finally {
       setPublishing(false);
@@ -76,6 +85,11 @@ export default function LessonDetail() {
 
       <View style={{ gap: sp.sm }}>
         <Badge label={published ? 'Published' : 'Draft'} tone={published ? 'ok' : 'warn'} dot />
+        {published ? (
+          <Txt variant="small" c={color.okInk} w={weight.semibold}>
+            Students can see this now.
+          </Txt>
+        ) : null}
         <Txt variant="body" c={color.inkSecondary}>
           {lesson.summary}
         </Txt>
@@ -133,7 +147,12 @@ export default function LessonDetail() {
       })}
 
       {!published ? (
-        <Button title="Publish lesson" icon="check" loading={publishing} onPress={publish} />
+        <Button
+          title={armed ? 'Confirm publish' : 'Publish lesson'}
+          icon="check"
+          loading={publishing}
+          onPress={publish}
+        />
       ) : null}
     </Screen>
   );
