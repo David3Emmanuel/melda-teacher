@@ -11,9 +11,12 @@ const tabIcon =
 
 export default function TeacherTabs() {
   // Guard the whole teacher surface: no token (fresh boot, or signed out by a
-  // 401) sends you back to the login screen.
+  // 401) sends you back to the login screen, and a token with no class yet sends
+  // you to create one.
   const token = useSession((s) => s.token);
+  const currentClass = useSession((s) => s.currentClass);
   if (!token) return <Redirect href="/" />;
+  if (!currentClass) return <Redirect href="/create-class" />;
 
   return (
     <Tabs

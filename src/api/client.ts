@@ -14,6 +14,8 @@ import type {
   ConceptDetail,
   CreateAdaptationRequest,
   CreateAssignmentRequest,
+  CreateClassRequest,
+  CreateClassResponse,
   CreateLessonRequest,
   DraftLessonInput,
   DraftQuizInput,
@@ -22,6 +24,7 @@ import type {
   LessonDraft,
   LoginRequest,
   QuizDraft,
+  SignupRequest,
   StudentDetail,
 } from 'melda-shared';
 
@@ -77,8 +80,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   login: (body: LoginRequest) => request<AuthResponse>('POST', '/auth/login', body),
+  signup: (body: SignupRequest) => request<AuthResponse>('POST', '/auth/signup', body),
 
   myClasses: () => request<ClassCard[]>('GET', '/me/classes'),
+
+  createClass: (body: CreateClassRequest) =>
+    request<CreateClassResponse>('POST', '/classes', body),
 
   insights: (classId: string) => request<InsightsResponse>('GET', `/classes/${classId}/insights`),
   conceptDetail: (classId: string, conceptId: string) =>
