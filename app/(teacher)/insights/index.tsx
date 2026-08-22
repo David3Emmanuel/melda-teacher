@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { SvgXml } from 'react-native-svg';
 import { api } from '../../../src/api/client';
 import { useApi } from '../../../src/api/useApi';
 import { useSession } from '../../../src/state/store';
@@ -20,6 +21,7 @@ import {
   Divider,
   EmptyState,
   ErrorState,
+  HERO_SHAPE_XML,
   Icon,
   Loading,
   type PressState,
@@ -153,7 +155,16 @@ export default function InsightsDashboard() {
     >
       <ClassSwitcher />
       {top ? (
-        <Card onPress={() => router.push(`/(teacher)/insights/concept/${top.conceptId}`)}>
+        <Card
+          onPress={() => router.push(`/(teacher)/insights/concept/${top.conceptId}`)}
+          style={{ overflow: 'hidden' }}
+        >
+          <SvgXml
+            xml={HERO_SHAPE_XML}
+            width={300}
+            height={171}
+            style={{ position: 'absolute', top: 0, right: 0, opacity: 0.12 }}
+          />
           <Row style={{ justifyContent: 'space-between' }}>
             <Badge label="Biggest gap" tone="struggle" dot />
             <Txt variant="small" c={color.inkMuted}>
