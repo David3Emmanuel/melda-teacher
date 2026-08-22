@@ -88,7 +88,7 @@ export default function Roster() {
       <View>
         <SectionTitle
           title={className ?? 'Class'}
-          caption={`${roster.length} students - tap one to see how they are doing`}
+          caption={`${roster.length} ${roster.length === 1 ? 'student' : 'students'} - tap one to see how they are doing`}
         />
         <Input
           value={query}
@@ -142,7 +142,9 @@ export default function Roster() {
                         <Txt variant="tiny" c={color.inkMuted} numberOfLines={1}>
                           {n.struggleCount > 0
                             ? n.strugglingConceptNames.join(', ')
-                            : 'No concepts below the pass line'}
+                            : n.overallMasteryPct === null
+                              ? 'No data yet'
+                              : 'No concepts below the pass line'}
                         </Txt>
                       </View>
                     </Row>
