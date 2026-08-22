@@ -94,7 +94,6 @@ export default function Roster() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search students"
-          onSubmitEditing={() => undefined}
           style={{ marginBottom: sp.sm }}
         />
         <Row wrap gap={sp.sm}>
