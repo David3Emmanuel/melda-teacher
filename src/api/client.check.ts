@@ -72,7 +72,7 @@ async function main() {
   ok(last!.body === undefined, 'a GET sends no body');
 
   // 3. path building interpolates params
-  stubFetch(200, { summary: {}, concepts: [], studentsByNeed: [], narration: '' });
+  stubFetch(200, { summary: {}, concepts: [], studentsByNeed: [], avgMasteryPct: 90, narration: '' });
   await api.insights('class-1');
   ok(last!.url.endsWith('/classes/class-1/insights'), 'insights builds the class path');
 

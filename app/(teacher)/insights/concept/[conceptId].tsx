@@ -147,7 +147,7 @@ export default function ConceptScreen() {
                   </Row>
                   <Button
                     title="View"
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
                     onPress={() => router.push(`/(teacher)/insights/student/${s.id}`)}
                   />

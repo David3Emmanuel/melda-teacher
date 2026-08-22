@@ -39,8 +39,13 @@ export default function LessonsLibrary() {
     <Screen title="Lessons" subtitle="Lessons you have written" right={right} onRefresh={reload}>
       {loading && !lessons ? <Loading /> : null}
 
-      {error ? (
+      {error && !lessons ? (
         <ErrorState title="Could not load lessons" message={error} onRetry={reload} />
+      ) : null}
+      {error && lessons ? (
+        <Txt variant="small" c={color.warnInk}>
+          Couldn't refresh. Showing the last lessons loaded.
+        </Txt>
       ) : null}
 
       {lessons && lessons.length === 0 ? (

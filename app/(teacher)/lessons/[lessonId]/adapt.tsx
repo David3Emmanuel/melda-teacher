@@ -166,6 +166,9 @@ export default function AdaptSection() {
       <Button
         title={draft ? 'Regenerate' : 'Generate with MELDA'}
         icon="sparkle"
+        // Once a draft exists, saving is the action that completes the task, so
+        // the commit keeps the primary emphasis and Regenerate steps back.
+        variant={draft ? 'secondary' : 'primary'}
         loading={generating}
         onPress={generate}
       />
@@ -190,7 +193,6 @@ export default function AdaptSection() {
           <Button
             title="Save to lesson"
             icon="check"
-            variant="secondary"
             loading={saving}
             onPress={save}
           />

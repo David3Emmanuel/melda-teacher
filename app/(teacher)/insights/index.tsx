@@ -104,15 +104,18 @@ export default function InsightsDashboard() {
     );
   }
 
-  const { summary, concepts, studentsByNeed, narration } = data;
-  const needs = studentsByNeed.filter((n) => n.struggleCount > 0).slice(0, 5);
-  const avgMastery = concepts.length
-    ? Math.round(concepts.reduce((sum, c) => sum + c.avgMasteryPct, 0) / concepts.length)
-    : 0;
+  const { summary, concepts, studentsByNeed, avgMasteryPct, narration } = data;
+  // The follow-up list is a triage top-5, not the whole caseload: show every
+  // struggler's row count and hand the rest to the full roster screen (which is
+  // also where student search lives) instead of silently truncating.
+  const strugglers = studentsByNeed.filter((n) => n.struggleCount > 0);
+  const needs = strugglers.slice(0, 5);
+  const hiddenCount = strugglers.length - needs.length;
   const top = summary.topStruggle;
-  const topSignals = summary.signalCounts.slice(0, 5);
-  const maxSignal = topSignals[0]?.count ?? 1;
-  const mastery = masteryTone(avgMastery);
+  // The full signal breakdown: the set of types is small and bounded, and
+  // rendering all rows keeps the caption's total reconciling with the rows.
+  const maxSignal = summary.signalCounts[0]?.count ?? 1;
+  const mastery = masteryTone(avgMasteryPct);
 
   // Zero-state: with no submissions there is nothing to aggregate, so skip the
   // "0% / Struggling" theatre and point the teacher at the next step instead.
@@ -182,7 +185,12 @@ export default function InsightsDashboard() {
       </Card>
 
       <Row gap={sp.md} style={{ alignItems: 'stretch' }}>
-        <StatTile label="Students" value={String(summary.studentCount)} caption="in this class" />
+        <StatTile
+          label="Students"
+          value={String(summary.studentCount)}
+          caption="in this class - tap for the roster"
+          onPress={() => router.push('/(teacher)/insights/roster')}
+        />
         <StatTile
           label="Submitted"
           value={`${summary.submissionRatePct}%`}
@@ -191,7 +199,7 @@ export default function InsightsDashboard() {
         />
         <StatTile
           label="Avg mastery"
-          value={`${avgMastery}%`}
+          value={`${avgMasteryPct}%`}
           tone={mastery.tone}
           caption={mastery.label}
         />
@@ -233,7 +241,7 @@ export default function InsightsDashboard() {
         {needs.length ? (
           <View style={twoCol ? { flex: 1 } : undefined}>
             <SectionTitle
-              title="Students to check in with"
+              title={hiddenCount > 0 ? 'Top 5 by need' : 'Students to check in with'}
               caption="Most concepts below the pass line"
             />
             <Card>
@@ -261,6 +269,30 @@ export default function InsightsDashboard() {
                   </Row>
                 </View>
               ))}
+              {hiddenCount > 0 ? (
+                <View>
+                  <Divider />
+                  <Pressable
+                    onPress={() => router.push('/(teacher)/insights/roster')}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${hiddenCount} more students to check in with. Open the full roster.`}
+                    style={({ pressed, hovered, focused }: PressState) => [
+                      {
+                        paddingVertical: sp.md,
+                        alignItems: 'center',
+                        borderRadius: radius.sm,
+                      },
+                      hovered ? { backgroundColor: color.appBg } : null,
+                      focused ? { boxShadow: `0 0 0 2px ${color.accent}` } : null,
+                      pressed ? { opacity: 0.7 } : null,
+                    ]}
+                  >
+                    <Txt variant="small" w={weight.semibold} c={color.accent}>
+                      +{hiddenCount} more - see the full roster
+                    </Txt>
+                  </Pressable>
+                </View>
+              ) : null}
             </Card>
           </View>
         ) : null}
@@ -271,9 +303,9 @@ export default function InsightsDashboard() {
           title="Signals MELDA collected"
           caption={`${summary.totalSignals} learning signals from the student app`}
         />
-        {topSignals.length ? (
+        {summary.signalCounts.length ? (
           <Card>
-            {topSignals.map((s, idx) => (
+            {summary.signalCounts.map((s, idx) => (
               <View key={s.type}>
                 {idx > 0 ? <Divider /> : null}
                 <BarRow

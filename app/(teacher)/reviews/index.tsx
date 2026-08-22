@@ -38,8 +38,13 @@ export default function ReviewsList() {
     <Screen title="Reviews" subtitle="Quizzes you have set" right={right} onRefresh={reload}>
       {loading && !reviews ? <Loading /> : null}
 
-      {error ? (
+      {error && !reviews ? (
         <ErrorState title="Could not load reviews" message={error} onRetry={reload} />
+      ) : null}
+      {error && reviews ? (
+        <Txt variant="small" c={color.warnInk}>
+          Couldn't refresh. Showing the last reviews loaded.
+        </Txt>
       ) : null}
 
       {reviews && reviews.length === 0 ? (

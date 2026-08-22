@@ -127,14 +127,14 @@ export default function NewReview() {
         />
         <Row gap={sp.md} style={{ marginTop: sp.md, alignItems: 'flex-start' }}>
           <Input
-            label="Questions"
+            label="Questions (1-10)"
             value={count}
             onChangeText={setCount}
             keyboardType="number-pad"
             style={{ flex: 1 }}
           />
           <Input
-            label="Open for (days)"
+            label="Open for days (1-90)"
             value={openDays}
             onChangeText={setOpenDays}
             keyboardType="number-pad"
@@ -184,8 +184,18 @@ export default function NewReview() {
                 value={q.prompt}
                 onChangeText={(prompt) => patchQuestion(i, { prompt })}
                 multiline
+                nativeID={`q-${i}-prompt`}
               />
-              <View style={{ marginTop: sp.sm, gap: sp.sm }}>
+              {/* The answer key for one question: a radiogroup named by the
+                  prompt, one radio per choice. aria-checked carries the state
+                  on web (react-native-web drops the legacy accessibilityState
+                  mapping), and each letter badge sits in a 44px hit area so a
+                  mis-tap can't set the wrong answer key. */}
+              <View
+                accessibilityRole="radiogroup"
+                aria-labelledby={`q-${i}-prompt`}
+                style={{ marginTop: sp.sm, gap: sp.sm }}
+              >
                 {q.choices.map((choice, ci) => {
                   const isAnswer = ci === q.correctIndex;
                   return (
@@ -193,8 +203,16 @@ export default function NewReview() {
                       <Pressable
                         onPress={() => patchQuestion(i, { correctIndex: ci })}
                         accessibilityRole="radio"
+                        aria-checked={isAnswer}
                         accessibilityState={{ selected: isAnswer }}
                         accessibilityLabel={`Mark ${String.fromCharCode(65 + ci)} as the correct answer`}
+                        style={{
+                          minWidth: 44,
+                          minHeight: 44,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          alignSelf: 'flex-start',
+                        }}
                       >
                         <Badge
                           label={isAnswer ? 'Answer' : String.fromCharCode(65 + ci)}
