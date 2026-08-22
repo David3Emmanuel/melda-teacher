@@ -78,6 +78,12 @@ export default function StudentScreen() {
     .map(([type, count]) => ({ type, count }))
     .sort((a, b) => b.count - a.count);
 
+  // The actionable help signals: which sections this student flagged, newest
+  // first - so the teacher sees the note and can adapt that exact section.
+  const helpSignals = signals
+    .filter((s) => s.type === 'REQUEST_SIMPLER')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: student.name }} />
@@ -162,6 +168,52 @@ export default function StudentScreen() {
                     {signalLabel[s.type] ?? s.type}
                   </Txt>
                   <Badge label={String(s.count)} tone="neutral" />
+                </Row>
+              </View>
+            ))}
+          </Card>
+        </View>
+      ) : null}
+
+      {helpSignals.length ? (
+        <View>
+          <SectionTitle title="Asked for help" caption="Adapt the section they flagged" />
+          <Card>
+            {helpSignals.map((s, idx) => (
+              <View key={s.id}>
+                {idx > 0 ? <Divider /> : null}
+                <Row
+                  style={{
+                    justifyContent: 'space-between',
+                    paddingVertical: sp.xs,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="small" w={weight.semibold}>
+                      {signalLabel[s.type] ?? s.type}
+                    </Txt>
+                    {s.note ? (
+                      <Txt variant="tiny" c={color.inkMuted} style={{ marginTop: 2 }}>
+                        {s.note}
+                      </Txt>
+                    ) : null}
+                  </View>
+                  {s.lessonId && s.sectionId ? (
+                    <Button
+                      title="Adapt"
+                      size="sm"
+                      variant="secondary"
+                      icon="sparkle"
+                      onPress={() =>
+                        router.push(
+                          `/(teacher)/lessons/${s.lessonId}/adapt?sectionId=${s.sectionId}${
+                            s.conceptId ? `&conceptId=${s.conceptId}` : ''
+                          }`,
+                        )
+                      }
+                    />
+                  ) : null}
                 </Row>
               </View>
             ))}
