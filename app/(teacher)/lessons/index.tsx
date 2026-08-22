@@ -52,7 +52,7 @@ export default function LessonsLibrary() {
         <EmptyState
           title="No lessons yet"
           body="Draft one with MELDA to start your unit."
-          icon="book"
+          art="book"
         />
       ) : null}
 

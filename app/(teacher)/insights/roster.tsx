@@ -162,7 +162,7 @@ export default function Roster() {
         <EmptyState
           title="No students match"
           body={`Nobody in this class matches "${query.trim()}".`}
-          icon="inbox"
+          art="search"
         />
       )}
     </Screen>

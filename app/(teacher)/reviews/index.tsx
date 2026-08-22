@@ -51,7 +51,7 @@ export default function ReviewsList() {
         <EmptyState
           title="No reviews yet"
           body="Draft one with MELDA to start tracking."
-          icon="reviews"
+          art="reviews"
         />
       ) : null}
 

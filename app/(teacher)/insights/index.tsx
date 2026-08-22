@@ -132,7 +132,7 @@ export default function InsightsDashboard() {
         <EmptyState
           title="No submissions yet"
           body="Set a review for the class. As students hand in, MELDA shows you here where they are struggling."
-          icon="inbox"
+          art="inbox"
         />
         <Button
           title="Create a review"
