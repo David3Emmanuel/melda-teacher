@@ -9,10 +9,12 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../../../src/api/client';
 import { useApi } from '../../../../src/api/useApi';
 import { useSession } from '../../../../src/state/store';
+import { weakestConcept } from '../../../../src/weakestConcept';
 import {
   Avatar,
   Badge,
   BarRow,
+  Button,
   Card,
   Divider,
   ErrorState,
@@ -62,6 +64,10 @@ export default function StudentScreen() {
 
   const { student, overallMasteryPct, perConcept, signals } = data;
   const overall = masteryTone(overallMasteryPct);
+  // The one concept this student is weakest at anchors the two quick actions
+  // below (undefined when nothing is assessed yet, so the actions stay hidden).
+  const weakest = weakestConcept(perConcept);
+  const firstName = student.name.split(' ')[0];
 
   // Tally the student's signals by type, most frequent first. This is the one
   // bit of aggregation the screen does itself (everything else the server
@@ -97,6 +103,27 @@ export default function StudentScreen() {
           </View>
         </Row>
       </Card>
+
+      {/* Two decisive actions keyed to the weak spot: see the whole class for
+          the concept, or set a targeted review on it (prefills reviews/new). The
+          per-concept bars below still deep-link too; this makes "act" one tap. */}
+      {weakest ? (
+        <View style={{ gap: sp.sm }}>
+          <Button
+            title={`Help ${firstName} with ${weakest.name}`}
+            icon="chart"
+            onPress={() => router.push(`/(teacher)/insights/concept/${weakest.conceptId}`)}
+          />
+          <Button
+            title={`Set a review on ${weakest.name}`}
+            icon="reviews"
+            variant="secondary"
+            onPress={() =>
+              router.push(`/(teacher)/reviews/new?topic=${encodeURIComponent(weakest.name)}`)
+            }
+          />
+        </View>
+      ) : null}
 
       <View>
         <SectionTitle title="Mastery by concept" caption="Tap a concept to see the whole class" />

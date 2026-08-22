@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { QuizDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
 import { useUnsavedGuard } from '../../../src/hooks/useUnsavedGuard';
@@ -27,7 +27,10 @@ import { clampInt, color, sp } from 'melda-shared/ui/tokens';
 export default function NewReview() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
-  const [topic, setTopic] = useState('');
+  // A caller can seed the topic (the student drill-down sends the weak concept
+  // via ?topic=), so setting a targeted review is one tap from a struggler.
+  const { topic: seedTopic } = useLocalSearchParams<{ topic?: string }>();
+  const [topic, setTopic] = useState(seedTopic ?? '');
   // Draft + due params, all editable rather than baked into the request. The class
   // record carries no grade, so grade level defaults to the common case.
   const [gradeLevel, setGradeLevel] = useState('Grade 10');
