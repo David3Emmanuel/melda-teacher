@@ -79,6 +79,7 @@ export default function NewLesson() {
     try {
       const { id } = await api.createLesson(classId, {
         topic: topic.trim(),
+        gradeLevel: gradeLevel.trim() || undefined,
         title: draft.title,
         summary: draft.summary,
         sections: draft.sections.map((s) => ({ title: s.title, kind: s.kind, body: s.body })),

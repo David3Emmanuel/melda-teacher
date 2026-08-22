@@ -70,13 +70,14 @@ export default function NewReview() {
   }, [classId]);
 
   // Selecting a lesson makes the review about that lesson: the topic becomes the
-  // lesson's title (overriding any seeded topic), and the grade starts from the
-  // class. Picking "None" clears the link but leaves the topic the teacher set.
+  // lesson's topic (falling back to its title), and the grade inherits the
+  // lesson's authored grade (falling back to the class grade). Picking "None"
+  // clears the link but leaves the topic the teacher set.
   const selectLesson = (l: Lesson | null) => {
     setLessonId(l?.id);
     if (l) {
-      setTopic(l.title);
-      setGradeLevel(gradeFromClass(className));
+      setTopic(l.topic?.trim() || l.title);
+      setGradeLevel(l.gradeLevel?.trim() || gradeFromClass(className));
     }
   };
 
