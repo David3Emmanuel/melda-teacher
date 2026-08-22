@@ -6,7 +6,7 @@
 // assignment it becomes is server-owned state.
 
 import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { Lesson, QuizDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
@@ -142,7 +142,13 @@ export default function NewReview() {
             <Txt variant="tiny" c={color.inkMuted}>
               Link a lesson (optional)
             </Txt>
-            <Row wrap gap={sp.sm} style={{ marginTop: sp.xs }}>
+            {/* Horizontally scrollable so a class with many lessons keeps a single
+                row; "None" is pinned first and always in reach. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ flexDirection: 'row', gap: sp.sm, marginTop: sp.xs }}
+            >
               <Button
                 title="None"
                 size="sm"
@@ -158,7 +164,7 @@ export default function NewReview() {
                   onPress={() => setLessonId(l.id)}
                 />
               ))}
-            </Row>
+            </ScrollView>
             <Txt variant="tiny" c={color.inkMuted} style={{ marginTop: sp.xs }}>
               Linking a review shows students which lesson it draws on, so they can revisit it.
             </Txt>
