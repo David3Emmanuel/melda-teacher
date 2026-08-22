@@ -25,7 +25,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "name": "MELDA",
       "shortName": "MELDA",
       "themeColor": "#1439FF",
