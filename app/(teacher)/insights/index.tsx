@@ -45,6 +45,7 @@ import {
 export default function InsightsDashboard() {
   const router = useRouter();
   const currentClass = useSession((s) => s.currentClass);
+  const signOut = useSession((s) => s.signOut);
   const classId = currentClass?.id ?? '';
   const { data, loading, error, reload } = useApi(() => api.insights(classId));
 
@@ -87,6 +88,13 @@ export default function InsightsDashboard() {
       }}
     />
   ) : null;
+  const signOutControl = <Button title="Sign out" variant="ghost" size="sm" onPress={signOut} />;
+  const right = (
+    <Row gap={sp.sm}>
+      {signOutControl}
+      {resetControl}
+    </Row>
+  );
 
   const title = data?.summary.className ?? currentClass?.name ?? 'Insights';
 
@@ -119,23 +127,54 @@ export default function InsightsDashboard() {
   const maxSignal = summary.signalCounts[0]?.count ?? 1;
   const mastery = masteryTone(avgMasteryPct);
 
-  // Zero-state: with no submissions there is nothing to aggregate, so skip the
-  // "0% / Struggling" theatre and point the teacher at the next step instead.
+  // Zero-state: with no submissions there is nothing to aggregate for the
+  // struggle/attainment sections, so point the teacher at the next step instead.
+  // But still surface the roster (tap the Students tile) and any student signals
+  // ("I don't get this" fires REQUEST_SIMPLER) - a class can have signals before
+  // anyone has handed in a review.
   if (summary.submissionCount === 0) {
     return (
       <Screen
         title={summary.className}
         subtitle={currentClass?.subject}
-        right={resetControl}
+        right={right}
+        maxWidth={1080}
         onRefresh={reload}
       >
         <ClassSwitcher />
-        <StatTile label="Students" value={String(summary.studentCount)} caption="in this class" />
+        <StatTile
+          label="Students"
+          value={String(summary.studentCount)}
+          caption="in this class - tap for the roster"
+          onPress={() => router.push('/(teacher)/insights/roster')}
+        />
         <EmptyState
           title="No submissions yet"
           body="Set a review for the class. As students hand in, MELDA shows you here where they are struggling."
           art="inbox"
         />
+        {summary.signalCounts.length ? (
+          <View>
+            <SectionTitle
+              title="Signals MELDA collected"
+              caption={`${summary.totalSignals} learning signals from the student app`}
+            />
+            <Card>
+              {summary.signalCounts.map((s, idx) => (
+                <View key={s.type}>
+                  {idx > 0 ? <Divider /> : null}
+                  <BarRow
+                    label={signalLabel[s.type] ?? s.type}
+                    value={s.count}
+                    max={maxSignal}
+                    display={String(s.count)}
+                    fill={color.accent}
+                  />
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
         <Button
           title="Create a review"
           icon="plus"
