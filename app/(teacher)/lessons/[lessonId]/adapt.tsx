@@ -61,7 +61,7 @@ export default function AdaptSection() {
   const [failure, setFailure] = useState<string | null>(null);
 
   // A generated-but-unsaved adaptation is real work; warn before it is lost. Off
-  // while saving so the successful-save router.back() is not itself intercepted.
+  // while saving so the successful-save navigation below is not itself intercepted.
   useUnsavedGuard(!!draft && !saving);
 
   if (loading && !data) {
@@ -122,7 +122,11 @@ export default function AdaptSection() {
         mode,
         body: draft,
       });
-      router.back();
+      // Go to the lesson (not `back()`): Adapt is reachable from the lesson
+      // detail AND the student drill-down, so back() lands in the wrong place.
+      // replace() also unmounts this screen, so the Save button can't stay stuck
+      // loading after a successful write.
+      router.replace(`/(teacher)/lessons/${lesson.id}`);
     } catch (e) {
       setFailure(e instanceof Error ? e.message : 'Could not save the adaptation.');
       setSaving(false);
