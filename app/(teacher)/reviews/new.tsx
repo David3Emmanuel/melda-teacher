@@ -5,10 +5,10 @@
 // insights close the loop. The draft is the AI's first pass; the graded
 // assignment it becomes is server-owned state.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import type { QuizDraft } from 'melda-shared';
+import type { Lesson, QuizDraft } from 'melda-shared';
 import { api } from '../../../src/api/client';
 import { useUnsavedGuard } from '../../../src/hooks/useUnsavedGuard';
 import { useSession } from '../../../src/state/store';
@@ -31,6 +31,10 @@ export default function NewReview() {
   // via ?topic=), so setting a targeted review is one tap from a struggler.
   const { topic: seedTopic } = useLocalSearchParams<{ topic?: string }>();
   const [topic, setTopic] = useState(seedTopic ?? '');
+  // Linking a review to its source lesson: the teacher picks one (or none) and
+  // the class shows "reviewing <lesson>" so students can revisit the teaching.
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [lessonId, setLessonId] = useState<string | undefined>(undefined);
   // Draft + due params, all editable rather than baked into the request. The class
   // record carries no grade, so grade level defaults to the common case.
   const [gradeLevel, setGradeLevel] = useState('Grade 10');
@@ -40,6 +44,17 @@ export default function NewReview() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    api
+      .lessons(classId)
+      .then((ls) => live && setLessons(ls))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [classId]);
 
   // An edited draft that has not been set for the class is real work; warn before
   // it is lost. Off while saving so the successful-save router.replace is allowed.
@@ -95,6 +110,7 @@ export default function NewReview() {
       const { id } = await api.createAssignment(classId, {
         topic: topic.trim(),
         title: draft.title,
+        lessonId,
         dueAt: due.toISOString(),
         questions: draft.questions.map((q) => ({
           prompt: q.prompt,
@@ -121,6 +137,33 @@ export default function NewReview() {
           placeholder="e.g. Balancing equations"
           onSubmitEditing={generate}
         />
+        {lessons.length > 0 ? (
+          <View style={{ marginTop: sp.md }}>
+            <Txt variant="tiny" c={color.inkMuted}>
+              Link a lesson (optional)
+            </Txt>
+            <Row wrap gap={sp.sm} style={{ marginTop: sp.xs }}>
+              <Button
+                title="None"
+                size="sm"
+                variant={lessonId === undefined ? 'primary' : 'secondary'}
+                onPress={() => setLessonId(undefined)}
+              />
+              {lessons.map((l) => (
+                <Button
+                  key={l.id}
+                  title={l.title}
+                  size="sm"
+                  variant={lessonId === l.id ? 'primary' : 'secondary'}
+                  onPress={() => setLessonId(l.id)}
+                />
+              ))}
+            </Row>
+            <Txt variant="tiny" c={color.inkMuted} style={{ marginTop: sp.xs }}>
+              Linking a review shows students which lesson it draws on, so they can revisit it.
+            </Txt>
+          </View>
+        ) : null}
         <Input
           label="Grade level"
           value={gradeLevel}

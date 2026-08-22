@@ -1,11 +1,11 @@
 // Adapt a section: the teacher picks a mode (simpler, worked example, visual...)
 // and MELDA re-casts the section for the students who did not get it (POST
-// /ai/adapt-section). The struggle % shown here is the real aggregated figure
-// (pulled from the class insights) and is passed into the prompt so the copy can
-// reference it. Saving posts the adaptation (POST /lessons/:id/adaptations),
-// where it appears inline under the original section.
+// /ai/adapt-section). The text is editable always - the teacher can write their
+// own explanation from scratch, or draft it with MELDA and then edit. Saving
+// posts (POST /lessons/:id/adaptations) and the server UPSERTS per
+// lesson+section+mode, so re-saving never stacks duplicates.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { AdaptationMode } from 'melda-shared';
@@ -35,6 +35,7 @@ const MODES: AdaptationMode[] = [
   'visual',
   'practice',
   'reexplain',
+  'custom',
 ];
 
 export default function AdaptSection() {
@@ -55,14 +56,26 @@ export default function AdaptSection() {
   });
 
   const [mode, setMode] = useState<AdaptationMode>('simpler');
-  const [draft, setDraft] = useState<string | null>(null);
+  const [body, setBody] = useState('');
+  const [customInstruction, setCustomInstruction] = useState('');
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
-  // A generated-but-unsaved adaptation is real work; warn before it is lost. Off
-  // while saving so the successful-save navigation below is not itself intercepted.
-  useUnsavedGuard(!!draft && !saving);
+  // When data loads or the mode changes, load any saved adaptation for that mode.
+  useEffect(() => {
+    const existing = data?.lesson.adaptations.find(
+      (a) => a.sectionId === sectionId && a.mode === mode,
+    );
+    setBody(existing?.body ?? '');
+  }, [data, mode, sectionId]);
+
+  // The existing adaptation for the current mode (so the guard only warns on
+  // genuinely unsaved edits, not on a fresh load of an existing one).
+  const existingBody =
+    data?.lesson.adaptations.find((a) => a.sectionId === sectionId && a.mode === mode)?.body ?? '';
+  const isDirty = body.trim() !== '' && body !== existingBody;
+  useUnsavedGuard(isDirty && !saving);
 
   if (loading && !data) {
     return (
@@ -87,10 +100,12 @@ export default function AdaptSection() {
   }
 
   const { lesson, section, insight } = data;
-  // An assessed concept carries a name and a real struggle %; a freshly drafted
-  // concept has no submissions yet, so fall back to the lesson title for the prompt.
   const conceptName = insight?.name ?? lesson.title;
   const strugglePct = insight?.strugglePct;
+  // Previous explanations for this section, so the AI varies rather than repeats.
+  const priorBodies = lesson.adaptations
+    .filter((a) => a.sectionId === section.id)
+    .map((a) => a.body);
 
   const generate = async () => {
     setGenerating(true);
@@ -101,9 +116,11 @@ export default function AdaptSection() {
         sectionTitle: section.title,
         originalBody: section.body,
         mode,
+        customInstruction: mode === 'custom' ? customInstruction || undefined : undefined,
         strugglePct,
+        priorAdaptations: priorBodies,
       });
-      setDraft(res.body);
+      setBody(res.body);
     } catch (e) {
       setFailure(e instanceof Error ? e.message : 'Could not generate the adaptation.');
     } finally {
@@ -112,7 +129,7 @@ export default function AdaptSection() {
   };
 
   const save = async () => {
-    if (!draft) return;
+    if (!body.trim()) return;
     setSaving(true);
     setFailure(null);
     try {
@@ -120,12 +137,8 @@ export default function AdaptSection() {
         sectionId: section.id,
         conceptId: conceptId ?? section.conceptId,
         mode,
-        body: draft,
+        body: body.trim(),
       });
-      // Go to the lesson (not `back()`): Adapt is reachable from the lesson
-      // detail AND the student drill-down, so back() lands in the wrong place.
-      // replace() also unmounts this screen, so the Save button can't stay stuck
-      // loading after a successful write.
       router.replace(`/(teacher)/lessons/${lesson.id}`);
     } catch (e) {
       setFailure(e instanceof Error ? e.message : 'Could not save the adaptation.');
@@ -158,7 +171,7 @@ export default function AdaptSection() {
           {MODES.map((m) => (
             <Button
               key={m}
-              title={adaptationLabel[m]}
+              title={m === 'custom' ? 'My own way' : adaptationLabel[m]}
               size="sm"
               variant={m === mode ? 'primary' : 'secondary'}
               onPress={() => setMode(m)}
@@ -167,15 +180,45 @@ export default function AdaptSection() {
         </Row>
       </View>
 
+      {mode === 'custom' ? (
+        <Card style={{ backgroundColor: color.accentSoft, borderColor: color.accentSoft }}>
+          <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
+            Tell MELDA how to re-explain it
+          </Txt>
+          <Input
+            value={customInstruction}
+            onChangeText={setCustomInstruction}
+            multiline
+            placeholder="e.g. use a basketball pass as the analogy for electron transfer"
+            style={{ marginTop: sp.xs }}
+          />
+        </Card>
+      ) : null}
+
       <Button
-        title={draft ? 'Regenerate' : 'Generate with MELDA'}
+        title={body ? 'Regenerate with MELDA' : 'Generate with MELDA'}
         icon="sparkle"
-        // Once a draft exists, saving is the action that completes the task, so
-        // the commit keeps the primary emphasis and Regenerate steps back.
-        variant={draft ? 'secondary' : 'primary'}
+        variant={body ? 'secondary' : 'primary'}
         loading={generating}
         onPress={generate}
+        disabled={mode === 'custom' && !customInstruction.trim()}
       />
+
+      <Card style={{ backgroundColor: color.accentSoft, borderColor: color.accentSoft }}>
+        <Row gap={sp.xs}>
+          <Icon name="sparkle" size={12} color={color.accentInk} />
+          <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
+            {adaptationLabel[mode]}
+          </Txt>
+        </Row>
+        <Input
+          value={body}
+          onChangeText={setBody}
+          multiline
+          placeholder="Write the explanation yourself, or draft it with MELDA and then edit."
+          style={{ marginTop: sp.xs }}
+        />
+      </Card>
 
       {failure ? (
         <Txt variant="small" c={color.struggle}>
@@ -183,25 +226,13 @@ export default function AdaptSection() {
         </Txt>
       ) : null}
 
-      {draft ? (
-        <>
-          <Card style={{ backgroundColor: color.accentSoft, borderColor: color.accentSoft }}>
-            <Row gap={sp.xs}>
-              <Icon name="sparkle" size={12} color={color.accentInk} />
-              <Txt variant="tiny" c={color.accentInk} w={weight.bold}>
-                MELDA - {adaptationLabel[mode]}
-              </Txt>
-            </Row>
-            <Input value={draft} onChangeText={setDraft} multiline style={{ marginTop: sp.xs }} />
-          </Card>
-          <Button
-            title="Save to lesson"
-            icon="check"
-            loading={saving}
-            onPress={save}
-          />
-        </>
-      ) : null}
+      <Button
+        title="Save to lesson"
+        icon="check"
+        loading={saving}
+        disabled={!body.trim()}
+        onPress={save}
+      />
     </Screen>
   );
 }
