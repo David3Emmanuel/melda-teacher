@@ -24,9 +24,21 @@ import {
 } from 'melda-shared/ui/components';
 import { clampInt, color, sp } from 'melda-shared/ui/tokens';
 
+// The grade lives on the class (e.g. "Grade 10 Chemistry"), not the lesson; pull
+// a "Grade N" / "N" token so the review's grade starts right for the class.
+// ponytail: a plain prefix match, not a grade parser - a class named "Physics"
+// falls back to the common case rather than guessing.
+function gradeFromClass(name: string): string {
+  const m = name.match(/\bgrade\s*(\d+)/i);
+  if (m) return `Grade ${m[1]}`;
+  const n = name.match(/\b(\d{1,2})\b/);
+  return n ? `Grade ${n[1]}` : 'Grade 10';
+}
+
 export default function NewReview() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
+  const className = useSession((s) => s.currentClass?.name) ?? '';
   // A caller can seed the topic (the student drill-down sends the weak concept
   // via ?topic=), so setting a targeted review is one tap from a struggler.
   const { topic: seedTopic } = useLocalSearchParams<{ topic?: string }>();
@@ -35,9 +47,10 @@ export default function NewReview() {
   // the class shows "reviewing <lesson>" so students can revisit the teaching.
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string | undefined>(undefined);
-  // Draft + due params, all editable rather than baked into the request. The class
-  // record carries no grade, so grade level defaults to the common case.
-  const [gradeLevel, setGradeLevel] = useState('Grade 10');
+  // Draft + due params, all editable rather than baked into the request. The
+  // grade starts from the class's grade (falling back to the common case), so a
+  // review for a Grade 10 class does not silently read as Grade 10's default.
+  const [gradeLevel, setGradeLevel] = useState(gradeFromClass(className));
   const [count, setCount] = useState('5');
   const [openDays, setOpenDays] = useState('7');
   const [draft, setDraft] = useState<QuizDraft | null>(null);
@@ -55,6 +68,17 @@ export default function NewReview() {
       live = false;
     };
   }, [classId]);
+
+  // Selecting a lesson makes the review about that lesson: the topic becomes the
+  // lesson's title (overriding any seeded topic), and the grade starts from the
+  // class. Picking "None" clears the link but leaves the topic the teacher set.
+  const selectLesson = (l: Lesson | null) => {
+    setLessonId(l?.id);
+    if (l) {
+      setTopic(l.title);
+      setGradeLevel(gradeFromClass(className));
+    }
+  };
 
   // An edited draft that has not been set for the class is real work; warn before
   // it is lost. Off while saving so the successful-save router.replace is allowed.
@@ -153,7 +177,7 @@ export default function NewReview() {
                 title="None"
                 size="sm"
                 variant={lessonId === undefined ? 'primary' : 'secondary'}
-                onPress={() => setLessonId(undefined)}
+                onPress={() => selectLesson(null)}
               />
               {lessons.map((l) => (
                 <Button
@@ -161,7 +185,7 @@ export default function NewReview() {
                   title={l.title}
                   size="sm"
                   variant={lessonId === l.id ? 'primary' : 'secondary'}
-                  onPress={() => setLessonId(l.id)}
+                  onPress={() => selectLesson(l)}
                 />
               ))}
             </ScrollView>
