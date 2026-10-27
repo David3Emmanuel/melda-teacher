@@ -41,6 +41,7 @@ export default function Roster() {
   const router = useRouter();
   const classId = useSession((s) => s.currentClass?.id) ?? '';
   const className = useSession((s) => s.currentClass?.name);
+  const inviteCode = useSession((s) => s.currentClass?.inviteCode);
   const { data, loading, error, reload } = useApi(() => api.insights(classId));
 
   const [query, setQuery] = useState('');
@@ -108,6 +109,17 @@ export default function Roster() {
           ))}
         </Row>
       </View>
+
+      {inviteCode ? (
+        <Card style={{ backgroundColor: color.accentSoft, borderColor: color.accentSoft }}>
+          <Txt variant="tiny" c={color.accentInk} w={weight.semibold}>
+            Class code - share it so students can join
+          </Txt>
+          <Txt variant="display" c={color.accentInk} style={{ letterSpacing: 4 }}>
+            {inviteCode}
+          </Txt>
+        </Card>
+      ) : null}
 
       {rows.length ? (
         <Card>

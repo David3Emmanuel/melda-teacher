@@ -25,6 +25,7 @@ import {
   Icon,
   Loading,
   type PressState,
+  RichText,
   Row,
   Screen,
   SectionTitle,
@@ -229,9 +230,7 @@ export default function InsightsDashboard() {
           <Icon name="sparkle" size={18} color={color.accentInk} />
           <Txt variant="h3">What MELDA sees</Txt>
         </Row>
-        <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.sm }}>
-          {narration}
-        </Txt>
+        <RichText style={{ marginTop: sp.sm }}>{narration}</RichText>
       </Card>
 
       <Row gap={sp.md} style={{ alignItems: 'stretch' }}>

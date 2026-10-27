@@ -21,6 +21,7 @@ import {
   Icon,
   Input,
   Loading,
+  RichText,
   Row,
   Screen,
   SectionTitle,
@@ -155,9 +156,7 @@ export default function AdaptSection() {
         <Txt variant="h3" style={{ marginTop: sp.sm }}>
           {section.title}
         </Txt>
-        <Txt variant="small" c={color.inkSecondary} style={{ marginTop: sp.xs }}>
-          {section.body}
-        </Txt>
+        <RichText style={{ marginTop: sp.xs }}>{section.body}</RichText>
         {strugglePct ? (
           <Txt variant="tiny" c={color.struggleInk} style={{ marginTop: sp.sm }}>
             {strugglePct}% of the class struggled here

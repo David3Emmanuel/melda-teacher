@@ -17,6 +17,7 @@ import {
   ErrorState,
   Icon,
   Loading,
+  RichText,
   Row,
   Screen,
   Txt,
@@ -90,9 +91,7 @@ export default function LessonDetail() {
             Students can see this now.
           </Txt>
         ) : null}
-        <Txt variant="body" c={color.inkSecondary}>
-          {lesson.summary}
-        </Txt>
+        <RichText>{lesson.summary}</RichText>
       </View>
 
       {lesson.sections.map((sec) => {
@@ -116,9 +115,7 @@ export default function LessonDetail() {
             <Txt variant="h3" style={{ marginTop: sp.xs }}>
               {sec.title}
             </Txt>
-            <Txt variant="body" c={color.inkSecondary} style={{ marginTop: sp.xs }}>
-              {sec.body}
-            </Txt>
+            <RichText style={{ marginTop: sp.xs }}>{sec.body}</RichText>
 
             {adaptations.map((a) => (
               <View
@@ -137,9 +134,7 @@ export default function LessonDetail() {
                     MELDA - {adaptationLabel[a.mode]}
                   </Txt>
                 </Row>
-                <Txt variant="small" c={color.inkSecondary}>
-                  {a.body}
-                </Txt>
+                <RichText>{a.body}</RichText>
               </View>
             ))}
           </Card>
